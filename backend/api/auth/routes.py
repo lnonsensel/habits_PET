@@ -15,11 +15,36 @@ import asyncio
 auth_endpoints = APIRouter(prefix="/auth")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+register_responses = {
+    400: {
+        "description": "Bad Request - User already exists or password provided for OAuth"
+    },
+    422: {
+        "description": "Validation Error - Invalid email format, short password, etc."
+    },
+    409: {"description": "Conflict - Email already registered (IntegrityError)"},
+}
+
 
 @auth_endpoints.post(
-    "/register/", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+    "/register/",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=register_responses,
+    tags=["auth"],
 )
 async def register(user_data: UserCreate, db: Session = Depends(get_session)):
+    """
+    Register a new user.
+
+    - **email**: must be a valid email address
+    - **password**: minimum 8 characters, maximum 100
+    - **auth_provider**: 'local' or OAuth providers (e.g., 'google')
+    - **timezone**: IANA timezone (default UTC)
+    - **locale**: locale code (default 'en')
+
+    Returns the created user data (without password hash).
+    """
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(

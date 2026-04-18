@@ -4,6 +4,6 @@ from datetime import datetime
 base_endpoints = APIRouter()
 
 
-@base_endpoints.get("/health")
+@base_endpoints.get("/health", tags=["base"])
 async def healthcheck():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
