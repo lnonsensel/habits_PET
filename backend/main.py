@@ -1,4 +1,7 @@
 from api import app
+from api.auth.routes import auth_endpoints
+
+app.include_router(auth_endpoints)
 
 
 @app.get("/")
