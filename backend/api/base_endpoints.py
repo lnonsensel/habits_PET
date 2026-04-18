@@ -1,4 +1,3 @@
-from fastapi import Response
 from fastapi import APIRouter
 from datetime import datetime
 
