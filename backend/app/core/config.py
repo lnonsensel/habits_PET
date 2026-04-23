@@ -32,17 +32,18 @@ class RedocUIParams:
 
 tags_metadata = [
     {
-        "name": "users",
+        "name": "Users",
         "description": "Operations with users",
     },
     {
-        "name": "auth",
+        "name": "Authentication",
         "description": "Authentication and registration",
     },
-    {"name": "base", "description": "Base endpoints"},
+    {"name": "System", "description": "Base endpoints"},
 ]
 
 
+# -- FASTAPI PARAMS --
 @dataclass
 class FastAPIBaseParams:
     title: str = "Habit Pet API"

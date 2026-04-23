@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
 
-from models.db import Base, get_session
+from app.core.database import Base, get_session
 from main import app
 
 

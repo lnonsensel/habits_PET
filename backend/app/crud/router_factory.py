@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Type, List, Optional
-from api.crud.base import CRUDBase
-from models.db import get_session
+from app.crud.base import CRUDBase
+from app.core.database import get_session
 from enum import Enum
 
 

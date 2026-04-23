@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-load_dotenv("secret/.db.env")
+load_dotenv(".db.env")
 
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")

@@ -1,7 +1,4 @@
-from api import app
-from api.auth.routes import auth_endpoints
-
-app.include_router(auth_endpoints)
+from app.core.fastapi import app
 
 if __name__ == "__main__":
     import uvicorn

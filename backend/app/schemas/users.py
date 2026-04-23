@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy import desc
 
-from models.tables import AuthProvider
+from app.models.enums import AuthProvider
 
 
 class UserBase(BaseModel):
