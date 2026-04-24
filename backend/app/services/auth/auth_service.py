@@ -33,10 +33,11 @@ class AuthService:
             if not user_data.password:
                 raise PasswordRequiredError()
             password_hash = await self.get_hash(user_data.password)
+        else:
             if user_data.password:
                 raise PasswordNotAllowedError()
-        else:
-            password_hash = None
+            else:
+                password_hash = None
 
         try:
             user = users_crud.create_with_password_hash(

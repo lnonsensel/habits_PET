@@ -8,7 +8,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
-from models.enums import (
+from app.models.enums import (
     LogAction,
 )
 

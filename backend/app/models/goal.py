@@ -1,35 +1,47 @@
 import uuid
+
 from sqlalchemy import (
     Column,
     ForeignKey,
     Numeric,
-    Enum as SQLAlchemyEnum,
+    String,
+    DateTime,
     Time,
 )
+from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-
-from models.enums import (
-    GoalSource,
-)
 
 from app.core.database import Base
 
 
-class GoalRecord(Base):
-    __tablename__ = "goal_records"
+class Goal(Base):
+    __tablename__ = "goals"
+
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
+        default=uuid.uuid4,
         unique=True,
         nullable=False,
-        default=uuid.uuid4,
     )
-    goal_id = Column(
-        UUID(as_uuid=True), ForeignKey("goals.id", ondelete="CASCADE"), nullable=False
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    created_at = Column(Time(timezone=True), nullable=False, server_default=func.now())
-    value = Column(Numeric(255), nullable=False)
-    source = Column(
-        SQLAlchemyEnum(GoalSource), nullable=False, default=GoalSource.MANUAL
+    name = Column(String(255), nullable=False)
+    description = Column(String(255), nullable=True)
+    habit_id = Column(
+        UUID(as_uuid=True), ForeignKey("habits.id", ondelete="CASCADE"), nullable=True
     )
+    start_date = Column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    end_date = Column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    target_value = Column(Numeric(255), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    archived_at = Column(Time(timezone=True), nullable=True)

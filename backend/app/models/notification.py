@@ -9,7 +9,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 
-from models.enums import (
+from app.models.enums import (
     NotificationChannel,
     NotificationEvent,
     NotificationStatus,

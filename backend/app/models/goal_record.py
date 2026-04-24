@@ -5,11 +5,12 @@ from sqlalchemy import (
     Numeric,
     Enum as SQLAlchemyEnum,
     Time,
+    DateTime,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
-from models.enums import (
+from app.models.enums import (
     GoalSource,
 )
 
@@ -29,6 +30,12 @@ class GoalRecord(Base):
         UUID(as_uuid=True), ForeignKey("goals.id", ondelete="CASCADE"), nullable=False
     )
     created_at = Column(Time(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
     value = Column(Numeric(255), nullable=False)
     source = Column(
         SQLAlchemyEnum(GoalSource), nullable=False, default=GoalSource.MANUAL

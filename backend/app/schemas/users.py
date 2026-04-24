@@ -3,19 +3,24 @@ import uuid
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from typing import Optional
 
-from sqlalchemy import desc
 
 from app.models.enums import AuthProvider
 
 
 class UserBase(BaseModel):
     email: EmailStr = Field(
-        ..., description="User`s email address", example="user@example.com"
+        ...,
+        description="User's email address",
+        json_schema_extra={"example": "user@example.com"},
     )
     timezone: str = Field(
-        default="UTC", description="IANA timezone", example="Europe/London"
+        default="UTC",
+        description="IANA timezone",
+        json_schema_extra={"example": "Europe/London"},
     )
-    locale: str = Field(default="en", description="Locale code", example="en")
+    locale: str = Field(
+        default="en", description="Locale code", json_schema_extra={"example": "en"}
+    )
 
 
 class UserCreate(UserBase):
@@ -24,7 +29,7 @@ class UserCreate(UserBase):
         min_length=8,
         max_length=100,
         description="Password (8-100) characters",
-        example="S3curePassw0rd!!!",
+        json_schema_extra={"example": "S3curePassw0rd!!!"},
     )
     auth_provider: AuthProvider = Field(
         default=AuthProvider.LOCAL, description="Authentication provider"
@@ -43,7 +48,7 @@ class UserCreate(UserBase):
 
 
 class UserResponse(UserBase):
-    id: uuid.UUID = Field(..., description="User`s unique identifier")
+    id: uuid.UUID = Field(..., description="User's unique identifier")
     auth_provider: AuthProvider = Field(default=AuthProvider.LOCAL)
     created_at: datetime.datetime
     updated_at: datetime.datetime

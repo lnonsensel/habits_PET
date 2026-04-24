@@ -10,7 +10,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
-from models.enums import (
+from app.models.enums import (
     Periodicity,
 )
 
@@ -40,7 +40,7 @@ class Habit(Base):
     periodicity = Column(
         SQLAlchemyEnum(Periodicity), nullable=False, default=Periodicity.DAILY
     )
-    target_value = Column(Numeric(255), nullable=True)
+    target_value = Column(Numeric(12), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

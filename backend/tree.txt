@@ -1,0 +1,83 @@
+.
+├── alembic
+│   ├── env.py
+│   ├── script.py.mako
+│   ├── secret
+│   └── versions
+│       └── 632ab30163c5_initial_commit.py
+├── alembic.ini
+├── app
+│   ├── core
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── exceptions
+│   │   │   ├── base_exception.py
+│   │   │   ├── exception_handlers.py
+│   │   │   ├── __init__.py
+│   │   │   └── service_exceptions.py
+│   │   └── fastapi.py
+│   ├── crud
+│   │   ├── api_keys.py
+│   │   ├── base.py
+│   │   ├── goal_records.py
+│   │   ├── goals.py
+│   │   ├── habit_records.py
+│   │   ├── habits.py
+│   │   ├── __init__.py
+│   │   ├── notifications.py
+│   │   ├── router_factory.py
+│   │   ├── routers.py
+│   │   └── users.py
+│   ├── models
+│   │   ├── api_key.py
+│   │   ├── audit_log.py
+│   │   ├── enums.py
+│   │   ├── goal.py
+│   │   ├── goal_record.py
+│   │   ├── habit.py
+│   │   ├── habit_record.py
+│   │   ├── notification.py
+│   │   ├── session.py
+│   │   └── user.py
+│   ├── routers
+│   │   ├── auth.py
+│   │   ├── crud
+│   │   │   ├── api_keys_crud.py
+│   │   │   ├── goal_records_crud.py
+│   │   │   ├── goals_crud.py
+│   │   │   ├── habit_records_crud.py
+│   │   │   ├── habits_crud.py
+│   │   │   ├── __init__.py
+│   │   │   ├── notifications_crud.py
+│   │   │   └── users_crud.py
+│   │   ├── __init__.py
+│   │   └── system.py
+│   ├── schemas
+│   │   ├── api_keys.py
+│   │   ├── goal_records.py
+│   │   ├── goals.py
+│   │   ├── habit_records.py
+│   │   ├── habits.py
+│   │   ├── notifications.py
+│   │   └── users.py
+│   └── services
+│       └── auth
+│           └── auth_service.py
+├── Dockerfile
+├── main.py
+├── Makefile
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+├── tests
+│   ├── conftest.py
+│   ├── fixtures
+│   │   ├── client.py
+│   │   ├── database.py
+│   │   └── __init__.py
+│   ├── __init__.py
+│   └── integration
+│       └── test_auth.py
+└── tree.txt
+
+17 directories, 64 files

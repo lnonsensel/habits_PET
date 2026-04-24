@@ -9,7 +9,9 @@ def test_register_local_success(client):
             "locale": "ru",
         },
     )
-    assert response.status_code == 201
+    assert response.status_code == 201, (
+        f"Expected 201, got {response.status_code}. Response body: {response.text}"
+    )
     data = response.json()
     assert data["email"] == "test@example.com"
     assert data["auth_provider"] == "local"

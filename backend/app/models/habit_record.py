@@ -33,5 +33,5 @@ class HabitRecord(Base):
         nullable=False,
     )
     timestamp = Column(Time(timezone=True), nullable=False, server_default=func.now())
-    value = Column(Numeric(10, 2), nullable=False, default=1)
+    value = Column(Numeric(12), nullable=False, default=1)
     notes = Column(Text, nullable=True)

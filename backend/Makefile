@@ -34,6 +34,10 @@ test:
 	@echo "Running tests"
 	$(PYTHON_VENV) -m pytest tests/ -v
 
+test-break:
+	@echo "Running tests until breaks"
+	$(PYTHON_VENV) -m pytest tests/ -x --tb=short
+
 test-cov:
 	@echo "Running tests with coverage"
 	$(PYTHON_VENV) -m pytest tests/ -v --cov=app --cov-report=html
@@ -76,3 +80,7 @@ clean:
 	@echo "Clening complete"
 
 start: install dev
+
+tree:
+	@echo "Creating file tree in ./tree.txt"
+	tree -I "__pycache__" . > tree.txt
