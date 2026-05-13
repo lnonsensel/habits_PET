@@ -34,6 +34,7 @@ def create_test_user(db_session) -> str:
 # ------------------------------------------------------------
 def test_create_habit(client, db_session):
     user_id = create_test_user(db_session)
+    print(user_id)
     payload = {
         "user_id": user_id,
         "name": "Morning Run",

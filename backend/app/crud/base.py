@@ -1,7 +1,13 @@
 from typing import Generic, TypeVar, Type, List, Optional, Any
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from pydantic import BaseModel
+
+from app.core.exceptions.crud_exceptions import (
+    DuplicateKeyError,
+    ObjectNotFoundError,
+    DatabaseError,
+)
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -11,27 +17,42 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
+        self.tablename = self.model.__tablename__
 
     def get(self, db: Session, id: Any) -> Optional[ModelType]:
-        return db.query(self.model).filter(self.model.id == id).first()
+        try:
+            obj = db.query(self.model).filter(self.model.id == id).first()
+        except SQLAlchemyError as e:
+            raise DatabaseError(self.tablename, id)
+        return obj
 
     def get_multi(
         self, db: Session, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
-        return db.query(self.model).offset(skip).limit(limit).all()
+        try:
+            obj = db.query(self.model).offset(skip).limit(limit).all()
+        except SQLAlchemyError as e:
+            raise DatabaseError(self.tablename, id)
+        return obj
 
     def create(self, db: Session, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as e:
+            db.rollback()
+            raise DuplicateKeyError(self.tablename, e.orig)
         db.refresh(db_obj)
         return db_obj
 
     def update(self, db: Session, id: Any, obj_in: UpdateSchemaType) -> ModelType:
         db_obj = self.get(db, id)
         if not db_obj:
-            raise HTTPException(status_code=404, detail="Not found")
+            raise ObjectNotFoundError(
+                self.tablename,
+            )  # HTTPException(status_code=404, detail="Not found")
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
@@ -42,7 +63,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def delete(self, db: Session, id: Any) -> ModelType:
         db_obj = self.get(db, id)
         if not db_obj:
-            raise HTTPException(status_code=404, detail="Not found")
+            raise ObjectNotFoundError(
+                self.tablename,
+                id,
+            )  # HTTPException(status_code=404, detail="Not found")
         db.delete(db_obj)
         db.commit()
         return db_obj

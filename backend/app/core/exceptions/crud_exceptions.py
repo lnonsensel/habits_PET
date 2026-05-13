@@ -19,3 +19,8 @@ class ObjectNotFoundError(CRUDError):
 class DuplicateKeyError(CRUDError):
     status_code = 409
     detail = "Duplicate key violation"
+
+
+class DatabaseError(CRUDError):
+    status_code = 500
+    detail = "Unable to connect to DB"
