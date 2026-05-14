@@ -40,6 +40,8 @@ class GoalUpdate(BaseModel):
 class GoalResponse(GoalBase):
     id: UUID = Field(..., description="Уникальный идентификатор цели")
     user_id: UUID = Field(..., description="ID пользователя")
-    created_at: time = Field(..., description="Время создания цели (без даты?)")
-    archived_at: Optional[time] = Field(None, description="Время архивации (если есть)")
+    created_at: datetime = Field(..., description="Время создания цели (без даты?)")
+    archived_at: Optional[datetime] = Field(
+        None, description="Время архивации (если есть)"
+    )
     model_config = ConfigDict(from_attributes=True)  # allow ORM mode
