@@ -5,6 +5,7 @@ from datetime import time
 from typing import Optional, Dict, Any
 
 
+
 class APIKeyBase(BaseModel):
     name: str = Field(
         ..., max_length=255, description="Human‑readable name for the API key"
@@ -19,7 +20,7 @@ class APIKeyBase(BaseModel):
 
 
 class APIKeyCreate(APIKeyBase):
-    pass
+    user_id: UUID = Field(..., description="Owner of the key")
 
 
 class APIKeyResponse(APIKeyBase):

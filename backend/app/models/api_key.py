@@ -6,6 +6,7 @@ from sqlalchemy import (
     Time,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.sql import func
 
 from app.core.database import Base
 
@@ -27,5 +28,5 @@ class APIKey(Base):
     key_hash = Column(String(255), nullable=False)
     scopes = Column(JSONB, default=dict)
     expires_at = Column(Time(timezone=True), nullable=True)
-    created_at = Column(Time(timezone=True), nullable=False)
+    created_at = Column(Time(timezone=True), nullable=False, server_default=func.now())
     revoked_at = Column(Time(timezone=True), nullable=True)

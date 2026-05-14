@@ -37,7 +37,7 @@ class Notification(Base):
 
     event = Column(SQLAlchemyEnum(NotificationEvent), nullable=False)
     payload = Column(JSONB, nullable=True)
-    status = Column(SQLAlchemyEnum(NotificationStatus), nullable=False)
+    status = Column(SQLAlchemyEnum(NotificationStatus), nullable=False, default=NotificationStatus.PENDING)
     scheduled_at = Column(
         Time(timezone=True),
         nullable=False,

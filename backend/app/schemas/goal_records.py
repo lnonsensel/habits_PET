@@ -26,7 +26,7 @@ class GoalRecordResponse(GoalRecordBase):
 
 
 class GoalRecordUpdate(BaseModel):
-    goal_id: Optional[int] = None
+    goal_id: Optional[UUID] = None
     value: Optional[int] = None
     source: Optional[GoalSource] = None
     model_config = ConfigDict(extra="forbid")

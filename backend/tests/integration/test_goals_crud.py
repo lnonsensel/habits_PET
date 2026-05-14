@@ -1,10 +1,6 @@
-import pytest
 from uuid import uuid4
-from app.models import habit
-from app.models.user import User
 from app.models.habit import Habit
 from app.schemas.habits import HabitCreate
-from app.schemas.users import UserCreate
 
 from tests.integration.test_habits_crud import create_test_user
 from datetime import datetime
@@ -62,7 +58,6 @@ def test_create_goal(client, db_session):
 def test_create_goal_missing_required_field(client, db_session):
     user_id, habit_id = create_test_habit(db_session)
     payload = get_sample_goal(user_id, habit_id)
-    payload.pop("description")
     payload.pop("start_date")
     response = client.post("/goals/", json=payload)
     assert response.status_code == 422
@@ -76,8 +71,6 @@ def test_get_goals_empty(client, db_session):
 
 def test_get_goals_list(client, db_session):
     user_id, habit_id = create_test_habit(db_session)
-    # Create two habits
-    #
     goal1 = client.post(
         "/goals/",
         json=get_sample_goal(user_id, habit_id),
@@ -134,7 +127,7 @@ def test_update_goal(client, db_session):
     # Other fields unchanged
     assert updated["start_date"] == sample_goal["start_date"]
 
-    # -- ASSERT CHECK IF HABIT UPDATED --
+    # -- ASSERT CHECK IF GOAL UPDATED --
     response = client.get(f"/goals/{goal_id}")
     assert response.status_code == 200
     updated = response.json()
@@ -150,7 +143,7 @@ def test_update_goal_not_found(client):
     assert response.status_code == 404
 
 
-def test_delete_habit(client, db_session):
+def test_delete_goal(client, db_session):
     user_id, habit_id = create_test_habit(db_session)
     sample_goal = get_sample_goal(user_id, habit_id)
     create_resp = client.post(

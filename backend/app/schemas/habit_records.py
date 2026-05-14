@@ -35,7 +35,7 @@ class HabitRecordBase(BaseModel):
 
 
 class HabitRecordCreate(HabitRecordBase):
-    pass
+    user_id: UUID = Field(..., description="User ID that created this record")
 
 
 class HabitRecordResponse(HabitRecordBase):

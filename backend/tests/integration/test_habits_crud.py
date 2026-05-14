@@ -1,7 +1,5 @@
-import pytest
 from uuid import uuid4
 from app.models.user import User
-from app.schemas.habits import HabitCreate
 from app.schemas.users import UserCreate
 
 
@@ -93,11 +91,9 @@ def test_get_habits_list(client, db_session):
             "description": "Sample description",
         },
     ).json()
-    print(habit1, habit2)
     response = client.get("/habits/")
     assert response.status_code == 200
     data = response.json()
-    # print(data)
     assert len(data) == 2
     assert data[0]["id"] == habit1["id"]
     assert data[1]["id"] == habit2["id"]
@@ -146,7 +142,7 @@ def test_update_habit(client, db_session):
     assert response.status_code == 200
     updated = response.json()
     assert updated["name"] == "New Name"
-    assert updated["target_value"] == 10.0  # Decimal comes as string in JSON
+    assert updated["target_value"] == 10.0
     # Other fields unchanged
     assert updated["unit"] == "km"
 
@@ -155,7 +151,7 @@ def test_update_habit(client, db_session):
     assert response.status_code == 200
     updated = response.json()
     assert updated["name"] == "New Name"
-    assert updated["target_value"] == 10.0  # Decimal comes as string in JSON
+    assert updated["target_value"] == 10.0
     # Other fields unchanged
     assert updated["unit"] == "km"
 
