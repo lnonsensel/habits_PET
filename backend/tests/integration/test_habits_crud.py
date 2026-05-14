@@ -34,7 +34,6 @@ def create_test_user(db_session) -> str:
 # ------------------------------------------------------------
 def test_create_habit(client, db_session):
     user_id = create_test_user(db_session)
-    print(user_id)
     payload = {
         "user_id": user_id,
         "name": "Morning Run",
@@ -50,7 +49,7 @@ def test_create_habit(client, db_session):
     assert data["user_id"] == user_id
     assert "id" in data
     assert "created_at" in data
-    assert "archived_at" is None
+    assert data["archived_at"] is None
 
 
 def test_create_habit_missing_required_field(client, db_session):
@@ -81,6 +80,7 @@ def test_get_habits_list(client, db_session):
             "name": "Habit 1",
             "unit": "times",
             "periodicity": "daily",
+            "description": "Sample description",
         },
     ).json()
     habit2 = client.post(
@@ -90,11 +90,14 @@ def test_get_habits_list(client, db_session):
             "name": "Habit 2",
             "unit": "hours",
             "periodicity": "weekly",
+            "description": "Sample description",
         },
     ).json()
+    print(habit1, habit2)
     response = client.get("/habits/")
     assert response.status_code == 200
     data = response.json()
+    # print(data)
     assert len(data) == 2
     assert data[0]["id"] == habit1["id"]
     assert data[1]["id"] == habit2["id"]
@@ -138,10 +141,21 @@ def test_update_habit(client, db_session):
     # Update name and target_value
     update_payload = {"name": "New Name", "target_value": 10.0}
     response = client.put(f"/habits/{habit_id}", json=update_payload)
+
+    # -- ASSERT RESPONSE FROM UPDATE REQUEST --
     assert response.status_code == 200
     updated = response.json()
     assert updated["name"] == "New Name"
-    assert updated["target_value"] == "10.0"  # Decimal comes as string in JSON
+    assert updated["target_value"] == 10.0  # Decimal comes as string in JSON
+    # Other fields unchanged
+    assert updated["unit"] == "km"
+
+    # -- ASSERT CHECK IF HABIT UPDATED --
+    response = client.get(f"/habits/{habit_id}")
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["name"] == "New Name"
+    assert updated["target_value"] == 10.0  # Decimal comes as string in JSON
     # Other fields unchanged
     assert updated["unit"] == "km"
 

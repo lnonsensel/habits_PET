@@ -8,8 +8,11 @@ from app.models.enums import Periodicity
 
 
 class HabitBase(BaseModel):
+    user_id: UUID = Field(..., description="User ID, owner of habit")
     name: str = Field(..., max_length=255, description="Name of habit")
-    description: str = Field(..., max_length=1024, description="Description of habit")
+    description: Optional[str] = Field(
+        None, max_length=1024, description="Description of habit"
+    )
     unit: str = Field(
         ...,
         max_length=255,
@@ -30,7 +33,7 @@ class HabitCreate(HabitBase):
 
 class HabitResponse(HabitBase):
     id: UUID = Field(..., description="Habit ID")
-    user_id: UUID = Field(..., description="User ID, owner of habit")
+    # user_id: UUID = Field(..., description="User ID, owner of habit")
     created_at: datetime = Field(..., description="Date of habit creation")
     archived_at: Optional[datetime] = Field(
         None, description="Date of habit archivation"
