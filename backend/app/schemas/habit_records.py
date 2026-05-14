@@ -1,28 +1,4 @@
-# class HabitRecord(Base):
-#     __tablename__ = "habit_records"
-#
-#     id = Column(
-#         UUID(as_uuid=True),
-#         primary_key=True,
-#         default=uuid.uuid4,
-#         unique=True,
-#         nullable=False,
-#     )
-#     habit_id = Column(
-#         UUID(as_uuid=True),
-#         ForeignKey("habits.id", ondelete="CASCADE"),
-#         nullable=False,
-#     )
-#     user_id = Column(
-#         UUID(as_uuid=True),
-#         ForeignKey("users.id", ondelete="CASCADE"),
-#         nullable=False,
-#     )
-#     timestamp = Column(Time(timezone=True), nullable=False, server_default=func.now())
-#     value = Column(Numeric(10, 2), nullable=False, default=1)
-#     notes = Column(Text, nullable=True)
-
-from datetime import time
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
@@ -41,7 +17,7 @@ class HabitRecordCreate(HabitRecordBase):
 class HabitRecordResponse(HabitRecordBase):
     id: UUID = Field(..., description="Habit Record ID")
     user_id: UUID = Field(..., description="User that created habit record")
-    timestamp: time = Field(..., description="Record timestamp")
+    timestamp: datetime = Field(..., description="Record timestamp")
     model_config = ConfigDict(from_attributes=True)
 
 

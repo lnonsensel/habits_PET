@@ -189,3 +189,39 @@ def test_delete_habit_not_found(client):
     random_id = str(uuid4())
     response = client.delete(f"/habits/{random_id}")
     assert response.status_code == 404
+
+
+# ------------------------------------------------------------
+# User isolation tests
+# ------------------------------------------------------------
+def test_get_habits_filtered_by_user(client, db_session):
+    user_a = create_test_user(db_session)
+    user_b = create_test_user(db_session)
+
+    client.post("/habits/", json={"user_id": user_a, "name": "Habit A", "unit": "km", "periodicity": "daily"})
+    client.post("/habits/", json={"user_id": user_b, "name": "Habit B", "unit": "km", "periodicity": "daily"})
+
+    resp_a = client.get(f"/habits/?user_id={user_a}")
+    assert resp_a.status_code == 200
+    data_a = resp_a.json()
+    assert len(data_a) == 1
+    assert data_a[0]["name"] == "Habit A"
+    assert data_a[0]["user_id"] == user_a
+
+    resp_b = client.get(f"/habits/?user_id={user_b}")
+    assert resp_b.status_code == 200
+    data_b = resp_b.json()
+    assert len(data_b) == 1
+    assert data_b[0]["name"] == "Habit B"
+    assert data_b[0]["user_id"] == user_b
+
+
+def test_get_habits_no_cross_user_leakage(client, db_session):
+    user_a = create_test_user(db_session)
+    user_b = create_test_user(db_session)
+
+    client.post("/habits/", json={"user_id": user_a, "name": "Secret Habit", "unit": "раз", "periodicity": "daily"})
+
+    resp = client.get(f"/habits/?user_id={user_b}")
+    assert resp.status_code == 200
+    assert resp.json() == []

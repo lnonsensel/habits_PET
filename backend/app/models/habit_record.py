@@ -3,7 +3,7 @@ from sqlalchemy import (
     Column,
     ForeignKey,
     Numeric,
-    Time,
+    DateTime,
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -32,6 +32,6 @@ class HabitRecord(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    timestamp = Column(Time(timezone=True), nullable=False, server_default=func.now())
+    timestamp = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     value = Column(Numeric(12), nullable=False, default=1)
     notes = Column(Text, nullable=True)

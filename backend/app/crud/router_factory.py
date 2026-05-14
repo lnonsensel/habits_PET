@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Type, List, Optional
+from uuid import UUID
 from app.crud.base import CRUDBase
 from app.core.database import get_session
 from enum import Enum
@@ -23,8 +24,13 @@ def create_crud_router(
         return crud.create(db, obj_in)
 
     @router.get("/", response_model=List[response_schema])
-    def read_multi(skip: int = 0, limit: int = 100, db: Session = Depends(get_session)):
-        return crud.get_multi(db, skip=skip, limit=limit)
+    def read_multi(
+        skip: int = 0,
+        limit: int = 100,
+        user_id: Optional[UUID] = None,
+        db: Session = Depends(get_session),
+    ):
+        return crud.get_multi(db, skip=skip, limit=limit, user_id=user_id)
 
     @router.get("/{item_id}", response_model=response_schema)
     def read_one(item_id: str, db: Session = Depends(get_session)):

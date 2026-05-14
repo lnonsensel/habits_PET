@@ -57,6 +57,11 @@ class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class LoginRequest(BaseModel):
+    email: EmailStr = Field(..., description="User's email address")
+    password: str   = Field(..., min_length=1, description="User's password")
+
+
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = Field(None, description="New email address")
     timezone: Optional[str] = Field(None, description="IANA timezone")

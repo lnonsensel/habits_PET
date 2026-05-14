@@ -136,3 +136,60 @@ def test_register_default_timezone_locale(client):
     data = response.json()
     assert data["timezone"] == "UTC"
     assert data["locale"] == "en"
+
+
+# ------------------------------------------------------------
+# Login tests
+# ------------------------------------------------------------
+def test_login_success(client):
+    client.post(
+        "/auth/register/",
+        json={"email": "login_ok@example.com", "password": "validpass123", "auth_provider": "local"},
+    )
+    response = client.post(
+        "/auth/login/",
+        json={"email": "login_ok@example.com", "password": "validpass123"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "login_ok@example.com"
+    assert "id" in data
+    assert "password" not in data
+    assert "password_hash" not in data
+
+
+def test_login_wrong_password(client):
+    client.post(
+        "/auth/register/",
+        json={"email": "login_bad@example.com", "password": "validpass123", "auth_provider": "local"},
+    )
+    response = client.post(
+        "/auth/login/",
+        json={"email": "login_bad@example.com", "password": "wrongpassword"},
+    )
+    assert response.status_code == 401
+
+
+def test_login_nonexistent_email(client):
+    response = client.post(
+        "/auth/login/",
+        json={"email": "nobody@example.com", "password": "somepassword"},
+    )
+    assert response.status_code == 401
+
+
+def test_login_oauth_user_no_password(client):
+    client.post(
+        "/auth/register/",
+        json={"email": "oauth_user@example.com", "auth_provider": "google"},
+    )
+    response = client.post(
+        "/auth/login/",
+        json={"email": "oauth_user@example.com", "password": "anypassword"},
+    )
+    assert response.status_code == 401
+
+
+def test_login_missing_password_field(client):
+    response = client.post("/auth/login/", json={"email": "x@x.com"})
+    assert response.status_code == 422

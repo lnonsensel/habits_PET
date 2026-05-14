@@ -1,4 +1,3 @@
-from httpx import Auth
 from app.core.exceptions.base_exception import AppError
 
 
@@ -24,3 +23,8 @@ class PasswordRequiredError(AuthenticationError):
 class PasswordNotAllowedError(AuthenticationError):
     status_code = 400
     detail = "Password must not be provided for OAuth"
+
+
+class InvalidCredentialsError(AuthenticationError):
+    status_code = 401
+    detail = "Invalid email or password"
