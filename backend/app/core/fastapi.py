@@ -1,5 +1,6 @@
 import traceback
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -9,8 +10,17 @@ from app.core.exceptions.exception_handlers import app_error_handler
 from app.core.exceptions import AppError
 from app.core.logger import logger
 from app.routers import routers
+from app.services.redis.client import init_redis, close_redis
 
-app = FastAPI(**collect_fastapi_params())
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_redis()
+    yield
+    await close_redis()
+
+
+app = FastAPI(lifespan=lifespan, **collect_fastapi_params())
 
 # ── Exception handlers ───────────────────────────────────────────
 app.add_exception_handler(AppError, app_error_handler)
