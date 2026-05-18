@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_session
+from app.crud.audit_logs import write_audit_log
+from app.models.enums import LogAction
 from app.schemas.users import LoginRequest, UserCreate, UserResponse
 from app.services.auth.auth_service import AuthService
 from app.services.redis.client import get_redis
@@ -46,4 +48,13 @@ async def login(
         limit=10,
         window=60,  # 10 attempts per minute per IP
     )
-    return await AuthService(db).login_user(credentials.email, credentials.password)
+    user = await AuthService(db).login_user(credentials.email, credentials.password)
+    write_audit_log(
+        db,
+        user_id=user.id,
+        event=LogAction.LOGIN,
+        context={"email": user.email},
+        ip=request.client.host,
+        user_agent=request.headers.get("user-agent"),
+    )
+    return user

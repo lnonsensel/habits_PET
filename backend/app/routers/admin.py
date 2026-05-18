@@ -1,37 +1,41 @@
 import os
 import secrets
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_session
+from app.crud.notifications import notifications_crud
 from app.models.audit_log import AuditLog
-from app.models.enums import NotificationStatus
+from app.models.enums import LogAction, NotificationChannel, NotificationEvent, NotificationStatus
 from app.models.habit import Habit
 from app.models.habit_record import HabitRecord
 from app.models.notification import Notification
 from app.models.user import User
-from app.schemas.notifications import NotificationUpdate
+from app.schemas.notifications import NotificationCreate, NotificationUpdate
 
-admin_router = APIRouter(prefix="/admin", tags=["Admin"])
-_security = HTTPBasic()
+admin_router = APIRouter(prefix="/api/admin", tags=["Admin"])
+# auto_error=False — не добавляем WWW-Authenticate: Basic в 401,
+# иначе браузер перехватывает ответ и показывает нативный диалог вместо React-формы
+_security = HTTPBasic(auto_error=False)
 
 
-def require_admin(credentials: HTTPBasicCredentials = Depends(_security)) -> None:
+def require_admin(credentials: Optional[HTTPBasicCredentials] = Depends(_security)) -> None:
     expected_user = os.getenv("ADMIN_USERNAME", "admin")
     expected_pass = os.getenv("ADMIN_PASSWORD", "")
-    ok = secrets.compare_digest(credentials.username, expected_user) and \
-         secrets.compare_digest(credentials.password, expected_pass)
+    ok = (
+        credentials is not None
+        and secrets.compare_digest(credentials.username, expected_user)
+        and secrets.compare_digest(credentials.password, expected_pass)
+    )
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": "Basic"},
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 # ── Stats ─────────────────────────────────────────────────────────
@@ -111,6 +115,39 @@ def delete_user(
 
 # ── Notifications ─────────────────────────────────────────────────
 
+class BroadcastRequest(BaseModel):
+    recipients: Literal["all"] | list[UUID]
+    event:   NotificationEvent
+    channel: NotificationChannel = NotificationChannel.EMAIL
+    payload: dict = Field(default_factory=dict)
+
+
+@admin_router.post("/notifications/send")
+def send_broadcast(
+    body: BroadcastRequest,
+    db: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+) -> dict[str, Any]:
+    """Разослать уведомление всем пользователям или выбранным."""
+    if body.recipients == "all":
+        user_ids = [row[0] for row in db.query(User.id).all()]
+    else:
+        user_ids = body.recipients
+
+    created = 0
+    for uid in user_ids:
+        notifications_crud.create(db, NotificationCreate(
+            user_id=uid,
+            channel=body.channel,
+            event=body.event,
+            payload=body.payload,
+            scheduled_at=datetime.now(timezone.utc).time(),
+        ))
+        created += 1
+
+    return {"created": created, "user_ids": [str(u) for u in user_ids]}
+
+
 @admin_router.get("/notifications")
 def list_notifications(
     skip: int = 0,
@@ -151,7 +188,6 @@ def retry_notification(
     db: Session = Depends(get_session),
     _: None = Depends(require_admin),
 ) -> None:
-    from app.crud.notifications import notifications_crud
     from app.tasks.notifications import send_notification
 
     n = notifications_crud.get(db, notification_id)
@@ -223,9 +259,12 @@ def list_logs(
               .join(User, User.id == AuditLog.user_id)
 
     if filter_event and filter_event != "all":
-        query = query.filter(AuditLog.event == filter_event)
+        try:
+            query = query.filter(AuditLog.event == LogAction(filter_event))
+        except ValueError:
+            pass  # неизвестный тип события — фильтр не применяется
 
-    rows = query.offset(skip).limit(limit).all()
+    rows = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit).all()
 
     return [
         {

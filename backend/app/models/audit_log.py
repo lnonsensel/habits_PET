@@ -1,10 +1,10 @@
 import uuid
 from sqlalchemy import (
     Column,
+    DateTime,
     ForeignKey,
     String,
     Enum as SQLAlchemyEnum,
-    Time,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -31,4 +31,4 @@ class AuditLog(Base):
     context = Column(JSONB, nullable=True)
     ip = Column(String(255), nullable=True)
     user_agent = Column(String(255), nullable=True)
-    created_at = Column(Time(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
