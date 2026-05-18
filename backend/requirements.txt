@@ -1,4 +1,5 @@
 alembic==1.18.1
+celery[redis]==5.5.2
 anyio==4.12.1
 bcrypt==4.3.0
 email-validator==2.3.0

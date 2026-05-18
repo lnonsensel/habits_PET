@@ -1,331 +1,184 @@
+# Architecture
 
-# Architecture Overview
-
-Документ описывает архитектуру PET-проекта «SmartHabit» — сервиса трекинга привычек и микро-целей с real-time обновлениями, публичным API и дашбордами. Архитектура охватывает backend, frontend, хранение данных, кэш, брокер фоновых задач, прокси-слой, мониторинг, CI/CD и оркестрацию.
-
-## 1. Architectural Goals
-
-- Собрать end-to-end стек web-разработки.
-    
-- Обеспечить воспроизводимый деплой (Docker → Kubernetes).
-    
-- Обеспечить наблюдаемость (metrics, logs, traces).
-    
-- Поддержать real-time взаимодействие (WebSocket / PubSub).
-    
-- Отделить dev/staging/prod окружения.
-    
-- Минимизировать coupling между подсистемами.
-    
-- Позволить горизонтальное масштабирование backend и worker.
-    
-
-## 2. High-Level Components
-
-Система состоит из следующих сервисов:
-
-1. **Frontend (Web App)**
-    
-    - React + Vite + Tailwind
-        
-    - Авторизация, UI менеджмент привычек, прогресс, графики
-        
-    - Websocket-клиент
-        
-    - Общается с backend через REST + WS
-        
-2. **Backend API**
-    
-    - FastAPI
-        
-    - REST + Websocket
-        
-    - Бизнес-логика привычек, целей, прогресса
-        
-    - Auth (JWT)
-        
-    - SQLAlchemy + Alembic
-        
-    - Интеграция с Redis (кэш + pub/sub)
-        
-    - Prometheus metrics
-        
-3. **Worker / Scheduler**
-    
-    - Celery/RQ
-        
-    - Redis как broker
-        
-    - Выполняет отложенные задачи (reminders, housekeeping)
-        
-    - Может запускаться в нескольких экземплярах для scaling
-        
-4. **PostgreSQL**
-    
-    - Основное хранилище данных
-        
-    - ACID транзакции
-        
-    - Предполагается StatefulSet в k8s
-        
-    - Экспортер метрик для Prometheus
-        
-5. **Redis**
-    
-    - Кэш (горячие данные)
-        
-    - pub/sub для WS
-        
-    - broker очередей фоновых задач
-        
-    - rate-limiting (будущее расширение)
-        
-6. **Nginx (Reverse Proxy)**
-    
-    - В локальной разработке: точка входа
-        
-    - В Kubernetes: ingress-controller (или nginx-ingress)
-        
-7. **CI/CD**
-    
-    - GitHub Actions/GitLab CI
-        
-    - Сборка Docker images + тесты + деплой в k8s
-        
-8. **Kubernetes**
-    
-    - Orchestration + scaling
-        
-    - Deployment/StatefulSet/Service/Ingress/Secrets/ConfigMap
-        
-    - Dev/Staging/Prod через overlays или Helm
-        
-9. **Monitoring & Observability**
-    
-    - Prometheus (metrics)
-        
-    - Grafana (dashboards)
-        
-    - Loki/ELK (logs) (опционально)
-        
-    - Jaeger/Tempo + OpenTelemetry (traces)
-        
-10. **Secrets & Config**
-    
-
-- Kubernetes Secrets / Vault / Sealed Secrets
-    
-- env vars для dev
-    
-
-## 3. High-Level Architecture Diagram (text)
+## Структура папок
 
 ```
-[Frontend] --(REST/WS)--> [Backend API] --(SQL)--> [PostgreSQL]
-                                   |
-                                   +--(Pub/Sub, Cache, RateLimit)--> [Redis]
-                                   |
-                                   +--(Tasks Enqueue)--> [Worker]
-                                                     |
-                                                     +--(Broker)--> [Redis]
-
-Ingress/Proxy: [Nginx / Ingress Controller]
-Orchestration: [Kubernetes]
-Infra: [Docker images, CI/CD, Secrets, Config]
-Observability: [Prometheus + Grafana + Logs + Traces]
+backend/
+├── app/
+│   ├── core/                      # Инфраструктурный слой
+│   │   ├── config.py              # Параметры FastAPI (docs, tags, swagger)
+│   │   ├── database.py            # SQLAlchemy engine, SessionLocal, Base, get_session()
+│   │   ├── fastapi.py             # Инициализация app, lifespan, middleware, handlers
+│   │   ├── logger.py              # RotatingFileHandler + StreamHandler
+│   │   └── exceptions/
+│   │       ├── base_exception.py  # AppError — базовый класс всех ошибок
+│   │       ├── crud_exceptions.py # ObjectNotFoundError, DuplicateKeyError, DatabaseError
+│   │       ├── service_exceptions.py  # Auth-ошибки
+│   │       ├── redis_exceptions.py    # RateLimitExceededError, LockNotAcquiredError
+│   │       └── exception_handlers.py  # Глобальный handler → JSONResponse
+│   │
+│   ├── models/                    # SQLAlchemy ORM (таблицы БД)
+│   │   ├── enums.py               # Все Enum-ы проекта
+│   │   ├── user.py                # User, Session
+│   │   ├── habit.py               # Habit
+│   │   ├── habit_record.py        # HabitRecord
+│   │   ├── goal.py                # Goal
+│   │   ├── goal_record.py         # GoalRecord
+│   │   ├── notification.py        # Notification
+│   │   ├── api_key.py             # APIKey
+│   │   └── audit_log.py           # AuditLog
+│   │
+│   ├── schemas/                   # Pydantic DTO (валидация запросов/ответов)
+│   │   ├── users.py               # UserCreate, UserUpdate, UserResponse, LoginRequest
+│   │   ├── habits.py
+│   │   ├── habit_records.py
+│   │   ├── goals.py
+│   │   ├── goal_records.py
+│   │   ├── notifications.py
+│   │   └── api_keys.py
+│   │
+│   ├── crud/                      # Операции с БД
+│   │   ├── base.py                # CRUDBase[Model, Create, Update] — generic класс
+│   │   ├── router_factory.py      # create_crud_router() — фабрика CRUD-маршрутов
+│   │   ├── users.py               # UserCRUD (+ get_by_email, hashing)
+│   │   ├── notifications.py       # NotificationCRUD (+ Celery dispatch)
+│   │   └── [entity].py            # Остальные — наследуют CRUDBase без изменений
+│   │
+│   ├── routers/                   # FastAPI роутеры (HTTP-слой)
+│   │   ├── __init__.py            # Список всех роутеров
+│   │   ├── auth.py                # /auth/register, /auth/login (+ rate limit)
+│   │   ├── sse.py                 # /notifications/stream, /notifications/publish
+│   │   ├── admin.py               # /admin/* (Basic Auth)
+│   │   ├── system.py              # /health, /health/db
+│   │   └── crud/                  # Автогенерированные CRUD-маршруты
+│   │
+│   ├── services/
+│   │   ├── auth/
+│   │   │   └── auth_service.py    # AuthService: register_user, login_user
+│   │   └── redis/
+│   │       ├── client.py          # init_redis, close_redis, get_redis
+│   │       ├── cache.py           # CacheService: get/set/delete/invalidate_prefix
+│   │       ├── sessions.py        # SessionService: create/get/delete (sliding TTL)
+│   │       ├── rate_limit.py      # RateLimitService: sliding window (sorted set)
+│   │       ├── locks.py           # LockService: NX SET с ownership token
+│   │       └── pubsub.py          # PubSubService: publish/subscribe (async gen)
+│   │
+│   └── tasks/                     # Celery
+│       ├── celery_app.py          # Celery instance, Beat schedule
+│       ├── notifications.py       # send_notification (max 3 retries)
+│       └── periodic.py            # check_streaks, send_daily_reminders, ...
+│
+├── alembic/                       # Миграции БД
+├── tests/                         # Тесты (integration, redis, tasks)
+├── Dockerfile
+├── Makefile
+└── requirements.txt
 ```
 
-```mermaid
-flowchart TD
-    subgraph "Infrastructure & Orchestration"
-        direction LR
-        I[Ingress/Proxy<br>Nginx / Ingress Controller]
-        O[Orchestration<br>Kubernetes]
-        Infra[Infra<br>Docker images, CI/CD,<br>Secrets, Config]
-        Obs[Observability<br>Prometheus + Grafana<br>+ Logs + Traces]
-    end
+## Слои приложения
 
-    subgraph "Application Core"
-        F[Frontend]
-        B[Backend API]
-        P[(PostgreSQL)]
-        R[(Redis)]
-        W[Worker]
-
-        F -- REST/WebSocket --> B
-        B -- SQL --> P
-        B -- Pub/Sub, Cache,<br>Rate Limit --> R
-        B -- Tasks Enqueue --> W
-        W -- Broker --> R
-    end
-
-    classDef infraClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef coreClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef dataClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
-    
-    class I,O,Infra,Obs infraClass
-    class F,B,W coreClass
-    class P,R dataClass
 ```
-## 4. API Protocols
+HTTP Request
+    │
+    ▼
+┌──────────────────────────────────────────────┐
+│                  Middleware                   │
+│  log_requests: METHOD PATH → STATUS (Xms)    │
+└──────────────────────────────────────────────┘
+    │
+    ▼
+┌──────────────────────────────────────────────┐
+│                   Router                      │
+│  Валидация path/query params (Pydantic)       │
+│  Вызов зависимостей: get_session, get_redis   │
+│  Auth зависимости (rate limit, Basic Auth)    │
+└──────────────────────────────────────────────┘
+    │
+    ├──► CRUD layer (CRUDBase / NotificationCRUD)
+    │        │
+    │        ├──► PostgreSQL (SQLAlchemy Session)
+    │        └──► Redis Cache (CacheService)
+    │
+    └──► Service layer (AuthService, RateLimitService, ...)
+             │
+             └──► Redis / bcrypt / ...
+```
 
-- HTTP/REST для CRUD операций
-    
-- Websocket для push / realtime
-    
-- Internal IPC через Redis pub/sub + очереди
-    
-- Exporters Prometheus — pull model
-    
+## CRUD Factory
 
-## 5. Data Model (Top-Level)
+Фабрика `create_crud_router()` генерирует 5 стандартных эндпоинтов для любой сущности из одного вызова:
 
-Основные сущности:
+```python
+notifications_crud_router = create_crud_router(
+    prefix="/notifications",
+    crud=notifications_crud,
+    create_schema=NotificationCreate,
+    response_schema=NotificationResponse,
+    update_schema=NotificationUpdate,
+    tags=["Notifications"],
+)
+```
 
-- User
-    
-- Habit
-    
-- HabitRecord
-    
-- Goal (опционально)
-    
-- GoalRecord
-    
-- Notification
-    
-- APIKey
-    
-- AuditLog
-    
+Что генерируется автоматически:
 
-Реляционные связи:
+| Метод | Путь | Кеш |
+|---|---|---|
+| `POST` | `/{resource}/` | инвалидация list |
+| `GET` | `/{resource}/` | TTL 60s |
+| `GET` | `/{resource}/{id}` | TTL 300s |
+| `PUT` | `/{resource}/{id}` | инвалидация item + list |
+| `DELETE` | `/{resource}/{id}` | инвалидация item + list |
 
-- User 1−N Habit
-    
-- Habit 1−N HabitRecord
-    
-- User 1−N Goal
-    
-- Goal 1−N GoalRecord
-    
+## Redis — использование по базам
 
-## 6. Deployment Environments
+| База | Назначение | Ключи |
+|---|---|---|
+| `db/0` | Кеш CRUD-ответов, сессии, rate limit, pub/sub | `habits:list:*`, `session:*`, `rate:*`, `sse:notifications:*` |
+| `db/1` | Celery broker (очередь задач) | служебные Celery ключи |
+| `db/2` | Celery result backend | результаты задач |
 
-- Local: docker-compose
-    
-- Staging: k8s (kind/minikube или cloud)
-    
-- Prod: k8s (cloud)
-    
-- Различия между окружениями — через overlays/Helm values.
-    
+## Lifecycle приложения
 
-## 7. Scaling Strategy
+```
+docker compose up
+    │
+    └──► CMD: alembic upgrade head    ← применить все миграции
+              │
+              └──► uvicorn app.core.fastapi:app
+                       │
+                       ├── lifespan startup:
+                       │      init_redis()  ← создать Redis connection pool
+                       │
+                       ├── register routers (system, auth, sse, admin, 7×crud)
+                       ├── add_exception_handler(AppError, ...)
+                       └── add_middleware(log_requests)
+```
 
-- Backend: horizontal (Deployment + HPA)
-    
-- Worker: horizontal по задачам очереди
-    
-- Redis/Postgres: StatefulSet (вертикально + HA по необходимости)
-    
-- Frontend: статический + CDN (опционально)
-    
+## Кеширование
 
-## 8. Fault Tolerance & Reliability
+Логика в `router_factory.py`:
 
-- Redis используется как «не-критичный» caching layer
-    
-- PostgreSQL — критичный stateful компонент
-    
-- Worker изолирован от request cycle
-    
-- Возможность graceful shutdown + restart
-    
-- CI/CD сборка образов immutable
-    
+- **List** (`GET /{resource}/`): ключ `{resource}:list:{user_id}:{habit_id}:{goal_id}:{skip}:{limit}`, TTL 60s.
+- **Item** (`GET /{resource}/{id}`): ключ `{resource}:item:{id}`, TTL 300s.
+- **Write** (POST/PUT/DELETE): удаляет `{resource}:item:{id}` и инвалидирует все `{resource}:list:*`.
 
-## 9. Observability Strategy
+## Обработка ошибок
 
-- Prometheus: latency/error rate/throughput/custom business metrics
-    
-- Grafana: визуализация (приложение + бизнес метрики)
-    
-- Logs: структурированные (JSON)
-    
-- Tracing: OpenTelemetry
-    
+```
+AppError (HTTP 500)
+├── CRUDError (500)
+│   ├── ObjectNotFoundError    → 404
+│   ├── DuplicateKeyError      → 409
+│   └── DatabaseError          → 500
+├── ServiceError (400)
+│   └── AuthenticationError
+│       ├── UserAlreadyExistsError    → 400
+│       ├── PasswordRequiredError     → 422
+│       ├── PasswordNotAllowedError   → 400
+│       └── InvalidCredentialsError  → 401
+├── RateLimitExceededError     → 429
+└── LockNotAcquiredError       → 409
+```
 
-## 10. Security Model
-
-- Auth: JWT + refresh tokens
-    
-- Secrets: k8s secrets / sealed secrets
-    
-- TLS: cert-manager + LetsEncrypt
-    
-- Rate limiting (redis)
-    
-- Dependency scanning (CI)
-    
-
-## 11. Technology Stack Summary
-
-- Python: FastAPI, SQLAlchemy, Alembic, pytest
-    
-- Frontend: React, Vite, Tailwind, Websocket
-    
-- DB: PostgreSQL
-    
-- Cache/Broker: Redis
-    
-- Containers: Docker
-    
-- Orchestrator: Kubernetes
-    
-- Proxy: Nginx/Ingress
-    
-- Monitoring: Prometheus + Grafana
-    
-- CI/CD: GitHub Actions/GitLab CI
-    
-- Tracing: OTel + Jaeger
-    
-
-## 12. Future Extensions
-
-- WebPush notifications
-    
-- Public API keys + quotas
-    
-- Event-driven analytics
-    
-- Recommendation engine
-    
-- Mobile client
-    
-
-## 13. Non-Out-of-Scope (за рамками MVP)
-
-- HA PostgreSQL + Patroni
-    
-- Redis cluster
-    
-- CDN
-    
-- Multi-cloud failover
-    
-
----
-
-Если нужно — могу:
-
-1. адаптировать этот `architecture.md` под ГОСТ/ISO стиль,
-    
-2. сделать PlantUML диаграммы,
-    
-3. добавить sequence diagrams,
-    
-4. добавить ADR (architectural decisions record),
-    
-5. разделить документ на spec + design + impl.
+Все `AppError` перехватываются `app_error_handler` и возвращаются как `{"detail": "..."}`.  
+Необработанные исключения логируются и возвращают `500 Internal server error`.

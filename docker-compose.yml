@@ -9,6 +9,7 @@ services:
     env_file:
       - backend/.db.env
       - backend/.redis.env
+      - backend/.admin.env
     environment:
       POSTGRES_HOST: db
       REDIS_HOST: cache
@@ -57,6 +58,44 @@ services:
     command: ["sh", "-c", "redis-server --requirepass $$REDIS_PASSWORD --save 60 1 --appendonly yes"]
     volumes:
       - redis_data:/data
+
+  celery_worker:
+    build:
+      context: ./backend
+      network: host
+    container_name: habits_celery_worker
+    command: celery -A app.tasks.celery_app:celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - backend/.db.env
+      - backend/.redis.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: cache
+    volumes:
+      - backend_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+
+  celery_beat:
+    build:
+      context: ./backend
+      network: host
+    container_name: habits_celery_beat
+    command: celery -A app.tasks.celery_app:celery_app beat --loglevel=info
+    env_file:
+      - backend/.db.env
+      - backend/.redis.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: cache
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
 
   reverse-proxy:
     image: nginx:stable-alpine
