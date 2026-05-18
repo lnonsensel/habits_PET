@@ -29,7 +29,7 @@ services:
       network: host
     container_name: habits_frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - backend
     networks:
