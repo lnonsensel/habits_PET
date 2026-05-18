@@ -137,6 +137,23 @@ notifications_crud_router = create_crud_router(
 | `db/1` | Celery broker (очередь задач) | служебные Celery ключи |
 | `db/2` | Celery result backend | результаты задач |
 
+## Kubernetes — схема ресурсов
+
+В staging-окружении Docker Compose заменяется Kubernetes. Соответствие сервисов:
+
+| Docker Compose | Kubernetes |
+|---|---|
+| `backend` | `Deployment/backend` + `Service/backend` |
+| `frontend` | `Deployment/frontend` + `Service/frontend` |
+| `db` (postgres) | `StatefulSet/postgres` + `Service/postgres` + `PVC` |
+| `cache` (redis) | `Deployment/redis` + `Service/redis` + `PVC` |
+| `celery_worker` | `Deployment/celery-worker` |
+| `celery_beat` | `Deployment/celery-beat` (strategy: Recreate) |
+| `reverse-proxy` (nginx) | `Ingress` (nginx ingress controller) |
+| `.env` файлы | `ConfigMap` (нечувствительные) + `Secret` (пароли) |
+
+Управление манифестами — через Kustomize: `base/` содержит общие ресурсы, `overlays/staging/` накладывает патчи. Подробнее: [Kubernetes](kubernetes.md).
+
 ## Lifecycle приложения
 
 ```

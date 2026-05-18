@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: habit-pet-staging
+
+resources:
+  - ../../base
+  - namespace-staging.yaml
+
+patches:
+  - path: patches/backend-replicas.yaml
+    target:
+      kind: Deployment
+      name: backend
+  - path: patches/celery-worker-replicas.yaml
+    target:
+      kind: Deployment
+      name: celery-worker
+  - path: patches/postgres-storage.yaml
+    target:
+      kind: PersistentVolumeClaim
+      name: postgres-pvc
+
+images:
+  - name: habit-pet/backend
+    newTag: staging
+  - name: habit-pet/frontend
+    newTag: staging
+
+commonLabels:
+  env: staging

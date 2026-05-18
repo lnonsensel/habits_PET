@@ -12,6 +12,7 @@
 | Фоновые задачи | Celery 5.5 + Celery Beat |
 | Валидация | Pydantic 2.12 |
 | Контейнеризация | Docker + Docker Compose |
+| Оркестрация (staging) | Kubernetes + Kustomize |
 
 ## Архитектурная схема
 
@@ -56,6 +57,7 @@
 | [Technology Stack](tech-stack.md) | Обоснование выбора каждой технологии |
 | [Background Tasks](background-tasks.md) | Celery задачи и расписание |
 | [Testing](testing.md) | Как запускать и писать тесты |
+| [Kubernetes](kubernetes.md) | K8s манифесты, Kustomize, деплой в staging |
 
 ## Быстрый старт
 

@@ -1,4 +1,5 @@
 *.env
+k8s/**/secret.yaml
 .venv/
 __pycache__/
 .obsidian/
