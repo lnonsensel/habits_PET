@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { getHabits, deleteHabit, createHabitRecord } from '../api/habits'
+import { getHabits, deleteHabit, createHabitRecord, getHabitRecords } from '../api/habits'
 import { useAuth } from '../context/AuthContext'
 import HabitCard from '../components/HabitCard'
+import ConfirmModal from '../components/ConfirmModal'
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
 
@@ -26,7 +27,11 @@ function getDateLabel() {
 }
 
 // ── Stats bar ────────────────────────────────────────────────────
-function StatsBar({ habits, doneCount }) {
+function StatsBar({ habits, todayProgress }) {
+  const doneCount = habits.filter(h => {
+    const p = todayProgress[h.id] || 0
+    return h.target_value != null ? p >= Number(h.target_value) : p > 0
+  }).length
   const daily = habits.filter(h => h.periodicity === 'daily').length
 
   return (
@@ -226,37 +231,66 @@ export default function HabitsPage() {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
   const [filter, setFilter]         = useState('all')
-  const [completedIds, setCompleted] = useState(new Set())
-  const [completingId, setCompletingId] = useState(null)
+  // progress[habitId] = total value logged today for that habit
+  const [todayProgress, setTodayProgress] = useState({})
+  const [addingId, setAddingId]           = useState(null)
+  const [deleteTarget, setDeleteTarget]   = useState(null)
+  const [deleting, setDeleting]           = useState(false)
+
+  // Aggregate today's records into progress map
+  const buildProgress = (records) => {
+    const today = new Date().toDateString()
+    const map = {}
+    records.forEach(r => {
+      if (new Date(r.timestamp).toDateString() !== today) return
+      map[r.habit_id] = (map[r.habit_id] || 0) + Number(r.value)
+    })
+    return map
+  }
 
   useEffect(() => {
     if (!user?.id) return
-    getHabits(user.id)
-      .then(setHabits)
+    Promise.all([getHabits(user.id), getHabitRecords(user.id)])
+      .then(([habitsData, recordsData]) => {
+        setHabits(habitsData)
+        setTodayProgress(buildProgress(recordsData))
+      })
       .catch(err => setError(err.detail ?? 'Ошибка загрузки'))
       .finally(() => setLoading(false))
   }, [user?.id])
 
-  const handleDelete = async (id) => {
-    if (!confirm('Вырвать привычку с корнем?')) return
+  const handleDeleteRequest = (id) => {
+    const habit = habits.find(h => h.id === id)
+    setDeleteTarget({ id, name: habit?.name ?? '' })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      await deleteHabit(id)
-      setHabits(prev => prev.filter(h => h.id !== id))
+      await deleteHabit(deleteTarget.id)
+      setHabits(prev => prev.filter(h => h.id !== deleteTarget.id))
+      setDeleteTarget(null)
     } catch (err) {
-      alert(err.detail ?? 'Ошибка удаления')
+      setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
     }
   }
 
-  const handleComplete = async (habitId) => {
-    if (!user) return
-    setCompletingId(habitId)
+  const handleAddProgress = async (habitId, value) => {
+    if (!user || !value || Number(value) <= 0) return
+    setAddingId(habitId)
     try {
-      await createHabitRecord({ user_id: user.id, habit_id: habitId, value: 1 })
-      setCompleted(prev => new Set([...prev, habitId]))
+      await createHabitRecord({ user_id: user.id, habit_id: habitId, value: Number(value) })
+      setTodayProgress(prev => ({
+        ...prev,
+        [habitId]: (prev[habitId] || 0) + Number(value),
+      }))
     } catch {
-      // silent: backend may not support marking or timestamp conflict
+      // silent
     } finally {
-      setCompletingId(null)
+      setAddingId(null)
     }
   }
 
@@ -330,7 +364,7 @@ export default function HabitsPage() {
       {!loading && !error && habits.length > 0 && (
         <>
           {/* Stats */}
-          <StatsBar habits={habits} doneCount={completedIds.size} />
+          <StatsBar habits={habits} todayProgress={todayProgress} />
 
           {/* Filters */}
           <FilterTabs active={filter} onChange={setFilter} counts={counts} />
@@ -346,10 +380,10 @@ export default function HabitsPage() {
                   <div key={h.id} style={{ animation: `fadeUp 0.4s ${i * 55}ms ease-out both` }}>
                     <HabitCard
                       habit={h}
-                      onDelete={handleDelete}
-                      onComplete={handleComplete}
-                      done={completedIds.has(h.id)}
-                      completing={completingId === h.id}
+                      onDelete={handleDeleteRequest}
+                      onAddProgress={handleAddProgress}
+                      progress={todayProgress[h.id] || 0}
+                      addingProgress={addingId === h.id}
                     />
                   </div>
                 ))
@@ -363,17 +397,29 @@ export default function HabitsPage() {
               <div className="tip-card">
                 <p className="tip-card-title">Совет садовника</p>
                 <p className="tip-card-body">
-                  {completedIds.size === 0
-                    ? 'Начните день — отметьте хотя бы одну привычку выполненной.'
-                    : completedIds.size < habits.length
-                    ? `Отлично! Ещё ${habits.length - completedIds.size} привычек ждут вас сегодня.`
-                    : 'Все привычки выполнены! Сад процветает 🌿'
-                  }
+                  {(() => {
+                    const done = habits.filter(h => {
+                      const p = todayProgress[h.id] || 0
+                      return h.target_value != null ? p >= Number(h.target_value) : p > 0
+                    }).length
+                    if (done === 0) return 'Начните день — зафиксируйте первый прогресс.'
+                    if (done < habits.length) return `Отлично! Ещё ${habits.length - done} привычек ждут вас.`
+                    return 'Все цели выполнены! Сад процветает.'
+                  })()}
                 </p>
               </div>
             </div>
           </div>
         </>
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          habit={deleteTarget}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => !deleting && setDeleteTarget(null)}
+          loading={deleting}
+        />
       )}
     </div>
   )

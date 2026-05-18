@@ -7,15 +7,18 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .db.env
+      - backend/.db.env
+      - backend/.redis.env
     environment:
       POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      REDIS_HOST: cache
     volumes:
       - backend_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
+      cache:
+        condition: service_started
 
   frontend:
     build:
@@ -32,7 +35,7 @@ services:
     container_name: habits_postgres
     restart: always
     env_file:
-      - .db.env
+      - backend/.db.env
     ports:
       - "5442:5432"
     volumes:
@@ -50,12 +53,8 @@ services:
     ports:
       - "6339:6379"
     env_file:
-      - .redis.env
-    command:
-      redis-server
-      --requirepass $${REDIS_PASSWORD}
-      --save 60 1
-      --appendonly yes
+      - backend/.redis.env
+    command: ["sh", "-c", "redis-server --requirepass $$REDIS_PASSWORD --save 60 1 --appendonly yes"]
     volumes:
       - redis_data:/data
 

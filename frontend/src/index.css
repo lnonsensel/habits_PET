@@ -583,6 +583,159 @@
 }
 
 /* ═══════════════════════════════════════════
+   CONFIRM MODAL
+   ═══════════════════════════════════════════ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 20, 0.48);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.18s ease-out both;
+}
+
+.modal-card {
+  background: var(--garden-cream);
+  border-radius: 24px;
+  padding: 36px 32px 28px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow:
+    0 28px 64px rgba(26, 26, 20, 0.22),
+    0 4px 16px rgba(26, 26, 20, 0.10),
+    0 0 0 1px rgba(214, 201, 182, 0.55);
+  animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle grain on card */
+.modal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.86) translateY(12px); opacity: 0; }
+  to   { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+
+.modal-illustration {
+  width: 88px;
+  height: 96px;
+  margin: 0 auto 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--garden-bark);
+  margin: 0 0 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-desc {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.82rem;
+  color: var(--garden-soil);
+  margin: 0 0 16px;
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-habit-name {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--garden-forest);
+  background: rgba(212, 230, 217, 0.4);
+  border: 1px solid rgba(149, 196, 160, 0.6);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+  word-break: break-word;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-btn-delete {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: none;
+  background: var(--garden-clay);
+  color: var(--garden-cream);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px rgba(193, 68, 14, 0.28);
+  position: relative;
+  overflow: hidden;
+}
+.modal-btn-delete::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(255,253,247,0.12) 0%, transparent 55%);
+  pointer-events: none;
+}
+.modal-btn-delete:hover:not(:disabled) {
+  background: #a53a0c;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 18px rgba(193, 68, 14, 0.35);
+}
+.modal-btn-delete:active:not(:disabled) { transform: translateY(0); }
+.modal-btn-delete:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modal-btn-cancel {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--garden-border);
+  background: transparent;
+  color: var(--garden-soil);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal-btn-cancel:hover {
+  background: rgba(214, 201, 182, 0.3);
+  border-color: var(--garden-soil);
+}
+
+/* ═══════════════════════════════════════════
    MAIN APP UI — HABITS DASHBOARD
    ═══════════════════════════════════════════ */
 
@@ -826,11 +979,81 @@
   color: var(--garden-soil);
 }
 
+/* ── Progress add form ── */
+.habit-add-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.habit-add-input {
+  width: 70px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--garden-border);
+  border-radius: 8px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--garden-bark);
+  background: var(--garden-parchment);
+  outline: none;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+  -moz-appearance: textfield;
+}
+.habit-add-input::-webkit-inner-spin-button,
+.habit-add-input::-webkit-outer-spin-button { opacity: 0.4; }
+.habit-add-input:focus {
+  border-color: var(--garden-sage);
+  background: var(--garden-cream);
+}
+
+.habit-add-unit {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.72rem;
+  color: var(--garden-soil);
+  flex-shrink: 0;
+}
+
+.habit-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--garden-forest);
+  color: var(--garden-cream);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 2px 8px rgba(45,106,79,0.22);
+  white-space: nowrap;
+}
+.habit-add-btn:hover:not(:disabled) {
+  background: #245f46;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(45,106,79,0.28);
+}
+.habit-add-btn:active:not(:disabled) { transform: translateY(0); }
+.habit-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Overachieved state (progress > target) */
+.habit-card.is-overachieved {
+  background: linear-gradient(145deg, #edf7f1 0%, var(--garden-cream) 100%);
+  border-color: var(--garden-sage);
+}
+
 /* Card footer */
 .habit-card-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid rgba(214,201,182,0.45);
@@ -1071,3 +1294,193 @@
   color: var(--garden-border);
 }
 .create-period-card.selected .create-period-desc { color: var(--garden-soil); }
+
+/* ═══════════════════════════════════════════
+   HABIT DETAIL PAGE
+   ═══════════════════════════════════════════ */
+
+/* ── Streak block ── */
+.streak-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.streak-flame {
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+}
+.streak-number {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: var(--garden-bark);
+  line-height: 1;
+}
+.streak-label {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--garden-soil);
+  margin-top: 3px;
+}
+
+/* ── Detail stat cards ── */
+.detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.detail-stat {
+  background: var(--garden-cream);
+  border: 1px solid var(--garden-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 2px 4px 10px rgba(45,106,79,0.07);
+}
+.detail-stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--garden-bark);
+  line-height: 1;
+}
+.detail-stat-label {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--garden-soil);
+  margin-top: 4px;
+}
+
+/* ── Section card ── */
+.detail-section {
+  background: var(--garden-cream);
+  border: 1px solid var(--garden-border);
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: 2px 4px 14px rgba(45,106,79,0.07);
+}
+.detail-section-title {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--garden-soil);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* ── Edit goal form ── */
+.edit-goal-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.edit-goal-input {
+  width: 90px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--garden-border);
+  border-radius: 10px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--garden-bark);
+  background: var(--garden-parchment);
+  outline: none;
+  text-align: center;
+  transition: border-color 0.2s;
+  -moz-appearance: textfield;
+}
+.edit-goal-input::-webkit-inner-spin-button,
+.edit-goal-input::-webkit-outer-spin-button { opacity: 0.4; }
+.edit-goal-input:focus { border-color: var(--garden-sage); background: var(--garden-cream); }
+.edit-goal-unit {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.82rem;
+  color: var(--garden-soil);
+}
+
+/* ── Calendar heatmap ── */
+.calendar-outer {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.calendar-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 14px);
+  gap: 3px;
+  width: max-content;
+}
+.calendar-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+  position: relative;
+}
+.calendar-cell:hover {
+  transform: scale(1.35);
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(26,26,20,0.18);
+}
+.calendar-day-labels {
+  display: grid;
+  grid-template-rows: repeat(7, 14px);
+  gap: 3px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.calendar-day-label {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.6rem;
+  color: var(--garden-soil);
+  line-height: 14px;
+  text-align: right;
+}
+.calendar-month-labels {
+  display: flex;
+  gap: 0;
+  margin-bottom: 4px;
+  margin-left: 34px;
+}
+.calendar-month-label {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--garden-soil);
+  letter-spacing: 0.04em;
+}
+
+/* Legend */
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.7rem;
+  color: var(--garden-soil);
+}
+.calendar-legend-cell {
+  width: 12px; height: 12px;
+  border-radius: 2px;
+}
+
+/* ── Today progress panel in detail ── */
+.detail-today {
+  background: var(--garden-cream);
+  border: 1px solid var(--garden-border);
+  border-left: 4px solid var(--garden-forest);
+  border-radius: 0 18px 18px 0;
+  padding: 18px 22px;
+  box-shadow: 2px 4px 14px rgba(45,106,79,0.08);
+}

@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HabitsPage from './pages/HabitsPage'
 import CreateHabitPage from './pages/CreateHabitPage'
+import HabitDetailPage from './pages/HabitDetailPage'
 
 export const router = createBrowserRouter([
   { path: '/login',    element: <LoginPage /> },
@@ -12,8 +13,9 @@ export const router = createBrowserRouter([
   {
     element: <PrivateRoute><Layout /></PrivateRoute>,
     children: [
-      { index: true,          element: <HabitsPage /> },
-      { path: 'habits/new',   element: <CreateHabitPage /> },
+      { index: true,              element: <HabitsPage /> },
+      { path: 'habits/new',       element: <CreateHabitPage /> },
+      { path: 'habits/:habitId',  element: <HabitDetailPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

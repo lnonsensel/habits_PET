@@ -2,6 +2,7 @@
 .venv/
 __pycache__/
 .obsidian/
+.claudeignore
 
 node_modules/
 package-lock.json
