@@ -236,6 +236,7 @@ export default function HabitsPage() {
   const [addingId, setAddingId]           = useState(null)
   const [deleteTarget, setDeleteTarget]   = useState(null)
   const [deleting, setDeleting]           = useState(false)
+  const [lastRecords, setLastRecords]     = useState({}) // { [habitId]: { id, value } }
 
   // Aggregate today's records into progress map
   const buildProgress = (records) => {
@@ -282,7 +283,8 @@ export default function HabitsPage() {
     if (!user || !value || Number(value) <= 0) return
     setAddingId(habitId)
     try {
-      await createHabitRecord({ user_id: user.id, habit_id: habitId, value: Number(value) })
+      const rec = await createHabitRecord({ user_id: user.id, habit_id: habitId, value: Number(value) })
+      setLastRecords(prev => ({ ...prev, [habitId]: { id: rec.id, value: Number(value) } }))
       setTodayProgress(prev => ({
         ...prev,
         [habitId]: (prev[habitId] || 0) + Number(value),
@@ -292,6 +294,22 @@ export default function HabitsPage() {
     } finally {
       setAddingId(null)
     }
+  }
+
+  const handleProgressUndo = (habitId, value) => {
+    setLastRecords(prev => { const n = { ...prev }; delete n[habitId]; return n })
+    setTodayProgress(prev => ({
+      ...prev,
+      [habitId]: Math.max(0, (prev[habitId] || 0) - value),
+    }))
+  }
+
+  const handleProgressRedoUndo = (habitId, value, newRecordId) => {
+    setLastRecords(prev => ({ ...prev, [habitId]: { id: newRecordId, value } }))
+    setTodayProgress(prev => ({
+      ...prev,
+      [habitId]: (prev[habitId] || 0) + value,
+    }))
   }
 
   const filtered = useMemo(() =>
@@ -384,6 +402,10 @@ export default function HabitsPage() {
                       onAddProgress={handleAddProgress}
                       progress={todayProgress[h.id] || 0}
                       addingProgress={addingId === h.id}
+                      lastRecord={lastRecords[h.id] || null}
+                      userId={user.id}
+                      onProgressUndo={handleProgressUndo}
+                      onProgressRedoUndo={handleProgressRedoUndo}
                     />
                   </div>
                 ))

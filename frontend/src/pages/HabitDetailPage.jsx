@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  getHabit, updateHabit, createHabitRecord, getHabitRecordsForHabit,
+  getHabit, updateHabit, createHabitRecord, deleteHabitRecord, getHabitRecordsForHabit,
 } from '../api/habits'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -450,10 +450,14 @@ export default function HabitDetailPage() {
   const { user }    = useAuth()
   const navigate    = useNavigate()
 
-  const [habit, setHabit]     = useState(null)
-  const [records, setRecords] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [adding, setAdding]   = useState(false)
+  const [habit, setHabit]         = useState(null)
+  const [records, setRecords]     = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [adding, setAdding]       = useState(false)
+  const [rollingBack, setRollingBack] = useState(false)
+  const [undoneRecord, setUndoneRecord] = useState(null)
+  const [undoSecsLeft, setUndoSecsLeft] = useState(0)
+  const undoTimerRef = useRef(null)
 
   useEffect(() => {
     if (!user?.id || !habitId) return
@@ -470,6 +474,8 @@ export default function HabitDetailPage() {
   const best     = useMemo(() => calcBestStreak(dateMap, target), [dateMap, target])
   const total    = records.length
 
+  useEffect(() => () => clearInterval(undoTimerRef.current), [])
+
   const handleAdd = async (value) => {
     setAdding(true)
     try {
@@ -477,6 +483,42 @@ export default function HabitDetailPage() {
       setRecords(prev => [...prev, rec])
     } catch { /* silent */ }
     finally { setAdding(false) }
+  }
+
+  const handleUndo = async () => {
+    if (records.length === 0) return
+    const last = [...records].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]
+    setRollingBack(true)
+    try {
+      await deleteHabitRecord(last.id)
+      setRecords(prev => prev.filter(r => r.id !== last.id))
+      setUndoneRecord(last)
+      setUndoSecsLeft(10)
+      clearInterval(undoTimerRef.current)
+      undoTimerRef.current = setInterval(() => {
+        setUndoSecsLeft(s => {
+          if (s <= 1) {
+            clearInterval(undoTimerRef.current)
+            setUndoneRecord(null)
+            return 0
+          }
+          return s - 1
+        })
+      }, 1000)
+    } catch { /* silent */ }
+    finally { setRollingBack(false) }
+  }
+
+  const handleRedoUndo = async () => {
+    if (!undoneRecord) return
+    clearInterval(undoTimerRef.current)
+    const rec = undoneRecord
+    setUndoneRecord(null)
+    setUndoSecsLeft(0)
+    try {
+      const restored = await createHabitRecord({ user_id: user.id, habit_id: habitId, value: rec.value })
+      setRecords(prev => [...prev, restored])
+    } catch { /* silent */ }
   }
 
   if (loading) {
@@ -569,6 +611,66 @@ export default function HabitDetailPage() {
           onAdd={handleAdd}
           adding={adding}
         />
+
+        {/* Undo last record */}
+        {records.length > 0 && !undoneRecord && (
+          <div style={{ marginTop: 10, display:'flex', alignItems:'center', gap:8 }}>
+            <button
+              onClick={handleUndo}
+              disabled={rollingBack}
+              style={{
+                display:'inline-flex', alignItems:'center', gap:5,
+                padding:'5px 13px', borderRadius:999,
+                border:'1.5px solid var(--garden-border)',
+                background:'transparent',
+                color:'var(--garden-soil)',
+                fontFamily:'Lato,sans-serif', fontSize:'0.72rem', fontWeight:600,
+                cursor:'pointer', transition:'all 0.2s',
+                opacity: rollingBack ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor='var(--garden-clay)'; e.currentTarget.style.color='var(--garden-clay)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='var(--garden-border)'; e.currentTarget.style.color='var(--garden-soil)' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 5.5A3.5 3.5 0 1 0 5.5 2H3"/>
+                <path d="M3 2v2.5H5.5"/>
+              </svg>
+              {rollingBack ? 'Откатываем…' : 'Откатить последнюю запись'}
+            </button>
+          </div>
+        )}
+
+        {/* Restore undone record */}
+        {undoneRecord && (
+          <div style={{
+            marginTop: 10, display:'flex', alignItems:'center', gap:10,
+            padding:'8px 14px', borderRadius:10,
+            background:'rgba(193,68,14,0.07)', border:'1px solid rgba(193,68,14,0.2)',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--garden-clay)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+              <path d="M2.5 7A4.5 4.5 0 1 0 7 2.5H4"/>
+              <path d="M4 2.5v3H1.5"/>
+            </svg>
+            <span style={{ fontFamily:'Lato,sans-serif', fontSize:'0.75rem', color:'var(--garden-soil)', flex:1 }}>
+              Запись удалена: <strong>{undoneRecord.value} {habit.unit}</strong>
+            </span>
+            <button
+              onClick={handleRedoUndo}
+              style={{
+                display:'inline-flex', alignItems:'center', gap:4,
+                padding:'4px 12px', borderRadius:999,
+                border:'1.5px solid var(--garden-clay)',
+                background:'transparent', color:'var(--garden-clay)',
+                fontFamily:'Lato,sans-serif', fontSize:'0.72rem', fontWeight:700,
+                cursor:'pointer', whiteSpace:'nowrap', transition:'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background='var(--garden-clay)'; e.currentTarget.style.color='var(--garden-cream)' }}
+              onMouseLeave={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='var(--garden-clay)' }}
+            >
+              ↩ Отменить откат ({undoSecsLeft}с)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Bar chart ── */}

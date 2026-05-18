@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { deleteHabitRecord, createHabitRecord } from '../api/habits'
 
 const PERIOD = {
   daily:   { label: 'ежедневно',   color: '#2D6A4F', bg: '#D4E6D9', accent: '#2D6A4F' },
@@ -169,10 +170,64 @@ function SimpleFooter({ habitId, progress, addingProgress, onAddProgress }) {
 }
 
 // ── Main card ────────────────────────────────────────────────────
-export default function HabitCard({ habit, onDelete, onAddProgress, addingProgress, progress = 0 }) {
+export default function HabitCard({
+  habit, onDelete, onAddProgress, addingProgress, progress = 0,
+  lastRecord = null, userId, onProgressUndo, onProgressRedoUndo,
+}) {
   const cfg      = PERIOD[habit.periodicity] ?? PERIOD.daily
   const hasGoal  = habit.target_value != null
   const isDone   = hasGoal ? progress >= Number(habit.target_value) : progress > 0
+
+  const [undoneRecord, setUndoneRecord] = useState(null)
+  const [undoSecsLeft, setUndoSecsLeft] = useState(0)
+  const [rollingBack, setRollingBack]   = useState(false)
+  const undoTimerRef = useRef(null)
+
+  // New record added — clear any pending restore
+  useEffect(() => {
+    if (lastRecord) {
+      setUndoneRecord(null)
+      setUndoSecsLeft(0)
+      clearInterval(undoTimerRef.current)
+    }
+  }, [lastRecord?.id])
+
+  useEffect(() => () => clearInterval(undoTimerRef.current), [])
+
+  const handleUndo = async () => {
+    if (!lastRecord) return
+    setRollingBack(true)
+    try {
+      await deleteHabitRecord(lastRecord.id)
+      onProgressUndo(habit.id, lastRecord.value)
+      setUndoneRecord(lastRecord)
+      setUndoSecsLeft(10)
+      clearInterval(undoTimerRef.current)
+      undoTimerRef.current = setInterval(() => {
+        setUndoSecsLeft(s => {
+          if (s <= 1) {
+            clearInterval(undoTimerRef.current)
+            setUndoneRecord(null)
+            return 0
+          }
+          return s - 1
+        })
+      }, 1000)
+    } catch { /* silent */ }
+    finally { setRollingBack(false) }
+  }
+
+  const handleRedoUndo = async () => {
+    if (!undoneRecord) return
+    clearInterval(undoTimerRef.current)
+    const rec = undoneRecord
+    setUndoneRecord(null)
+    setUndoSecsLeft(0)
+    try {
+      const restored = await createHabitRecord({ user_id: userId, habit_id: habit.id, value: rec.value })
+      onProgressRedoUndo(habit.id, rec.value, restored.id)
+    } catch { /* silent */ }
+  }
 
   return (
     <article className={`habit-card${isDone ? ' is-done' : ''}`}>
@@ -235,6 +290,61 @@ export default function HabitCard({ habit, onDelete, onAddProgress, addingProgre
             addingProgress={addingProgress}
             onAddProgress={onAddProgress}
           />
+        )}
+
+        {/* Undo last record */}
+        {lastRecord && !undoneRecord && (
+          <div style={{ marginTop: 8 }}>
+            <button
+              onClick={handleUndo}
+              disabled={rollingBack}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 11px', borderRadius: 999,
+                border: '1.5px solid var(--garden-border)',
+                background: 'transparent', color: 'var(--garden-soil)',
+                fontFamily: 'Lato,sans-serif', fontSize: '0.7rem', fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.2s',
+                opacity: rollingBack ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--garden-clay)'; e.currentTarget.style.color = 'var(--garden-clay)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--garden-border)'; e.currentTarget.style.color = 'var(--garden-soil)' }}
+            >
+              <svg width="10" height="10" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 5.5A3.5 3.5 0 1 0 5.5 2H3"/>
+                <path d="M3 2v2.5H5.5"/>
+              </svg>
+              {rollingBack ? 'Откатываем…' : 'Откатить'}
+            </button>
+          </div>
+        )}
+
+        {/* Restore undone record */}
+        {undoneRecord && (
+          <div style={{
+            marginTop: 8, display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 10px', borderRadius: 8,
+            background: 'rgba(193,68,14,0.07)', border: '1px solid rgba(193,68,14,0.2)',
+          }}>
+            <span style={{ fontFamily: 'Lato,sans-serif', fontSize: '0.7rem', color: 'var(--garden-soil)', flex: 1 }}>
+              Удалено: <strong>{undoneRecord.value} {habit.unit}</strong>
+            </span>
+            <button
+              onClick={handleRedoUndo}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '3px 10px', borderRadius: 999,
+                border: '1.5px solid var(--garden-clay)',
+                background: 'transparent', color: 'var(--garden-clay)',
+                fontFamily: 'Lato,sans-serif', fontSize: '0.7rem', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--garden-clay)'; e.currentTarget.style.color = 'var(--garden-cream)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--garden-clay)' }}
+            >
+              ↩ Отменить ({undoSecsLeft}с)
+            </button>
+          </div>
         )}
       </div>
     </article>

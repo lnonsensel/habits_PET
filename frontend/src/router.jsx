@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import PrivateRoute from './components/PrivateRoute'
@@ -14,6 +14,9 @@ import AdminUsersPage from './pages/admin/AdminUsersPage'
 import AdminNotifsPage from './pages/admin/AdminNotifsPage'
 import AdminHabitsPage from './pages/admin/AdminHabitsPage'
 import AdminLogsPage from './pages/admin/AdminLogsPage'
+import NotFoundPage from './pages/NotFoundPage'
+import ForbiddenPage from './pages/ForbiddenPage'
+import ServerErrorPage from './pages/ServerErrorPage'
 
 export const router = createBrowserRouter([
   { path: '/login',    element: <LoginPage /> },
@@ -42,5 +45,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '/forbidden',     element: <ForbiddenPage /> },
+  { path: '/server-error',  element: <ServerErrorPage /> },
+  { path: '*', element: <NotFoundPage /> },
 ])
