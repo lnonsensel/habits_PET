@@ -1,0 +1,8 @@
+version: "3"
+
+tunnels:
+  habit_pet:
+    proto: http
+    addr: reverse-proxy:81
+    # domain: square-uniformly-hedgehog.ngrok-free.app
+    url: square-uniformly-hedgehog.ngrok-free.app

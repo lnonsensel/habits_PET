@@ -20,6 +20,8 @@ services:
         condition: service_healthy
       cache:
         condition: service_started
+    networks:
+      - habits_network
 
   frontend:
     build:
@@ -30,6 +32,8 @@ services:
       - "80:80"
     depends_on:
       - backend
+    networks:
+      - habits_network
 
   db:
     image: postgres:17
@@ -46,6 +50,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - habits_network
 
   cache:
     image: redis:8.4-alpine
@@ -58,6 +64,8 @@ services:
     command: ["sh", "-c", "redis-server --requirepass $$REDIS_PASSWORD --save 60 1 --appendonly yes"]
     volumes:
       - redis_data:/data
+    networks:
+      - habits_network
 
   celery_worker:
     build:
@@ -78,6 +86,8 @@ services:
         condition: service_healthy
       cache:
         condition: service_started
+    networks:
+      - habits_network
 
   celery_beat:
     build:
@@ -96,6 +106,8 @@ services:
         condition: service_healthy
       cache:
         condition: service_started
+    networks:
+      - habits_network
 
   reverse-proxy:
     image: nginx:stable-alpine
@@ -109,6 +121,28 @@ services:
     depends_on:
       - frontend
       - backend
+    networks:
+      - habits_network
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: habits_ngrok
+    restart: unless-stopped
+    env_file:
+      - .ngrok.env
+    volumes:
+      # - ./ngrok.yml:/etc/ngrok/ngrok.yml
+      - ./ngrok.yml:/app/ngrok.yml
+    entrypoint: ["ngrok", "start", "--all", "--config", "/app/ngrok.yml", "--log", "stdout"]
+    ports:
+      - "4040:4040"
+    depends_on:
+      - reverse-proxy
+    networks:
+      - habits_network
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
 
 volumes:
   postgres_data:
@@ -116,3 +150,7 @@ volumes:
     driver: local
   backend_logs:
     driver: local
+
+networks:
+  habits_network:
+    driver: bridge

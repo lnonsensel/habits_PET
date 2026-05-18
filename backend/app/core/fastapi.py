@@ -1,8 +1,10 @@
+import os
 import traceback
 import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import collect_fastapi_params
@@ -21,6 +23,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, **collect_fastapi_params())
+
+# ── CORS ─────────────────────────────────────────────────────────
+_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ── Exception handlers ───────────────────────────────────────────
 app.add_exception_handler(AppError, app_error_handler)
