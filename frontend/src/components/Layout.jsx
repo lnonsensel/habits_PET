@@ -1,5 +1,7 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import NotificationBell from './NotificationBell'
+import NotificationToast from './NotificationToast'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -69,7 +71,9 @@ export default function Layout() {
           )}
 
           {/* Right side */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <NotificationBell />
+
             {/* Email pill */}
             <span style={{
               fontFamily: 'Lato, sans-serif',
@@ -123,6 +127,8 @@ export default function Layout() {
           </div>
         </div>
       </nav>
+
+      <NotificationToast />
 
       {/* ── Main ── */}
       <main style={{ flex: 1, maxWidth: 960, width: '100%', margin: '0 auto', padding: '32px 24px 48px' }}>
