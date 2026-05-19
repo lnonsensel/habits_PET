@@ -74,6 +74,225 @@ Kubernetes cluster (namespace: habit-pet-staging)
 
 ---
 
+## Рычаги запуска
+
+Три уровня: локальная машина → GitHub Actions → ArgoCD. Каждый следующий ближе к продакшну.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  УРОВЕНЬ 1: Локально                                                │
+│  pytest / npm test / act                                            │
+│  Цель: быстрая проверка до пуша                                    │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │ git push
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  УРОВЕНЬ 2: GitHub Actions                                          │
+│  PR → тесты  /  push main → тесты + сборка + update-manifests     │
+│  Цель: валидация и публикация версионированного образа             │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │ коммит kustomization.yaml
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  УРОВЕНЬ 3: ArgoCD                                                  │
+│  auto-sync / ручной sync                                           │
+│  Цель: доставка в кластер                                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Уровень 1 — Локально
+
+Самый быстрый способ поймать ошибку до любого пуша.
+
+#### Тесты напрямую
+
+```bash
+# Backend: pytest + TestContainers (нужен запущенный Docker)
+cd backend
+pytest tests/ -v --tb=short
+
+# с покрытием
+pytest tests/ -v --cov=app --cov-report=term-missing
+
+# один конкретный тест
+pytest tests/integration/test_auth.py -v
+
+# Frontend: Vitest
+cd frontend
+npm test -- --run
+
+# с покрытием
+npm test -- --run --coverage
+```
+
+#### act — полная симуляция GitHub Actions
+
+`act` читает `.github/workflows/ci-cd.yml` и запускает джобы в Docker-контейнерах, имитируя GitHub runner.
+
+```bash
+# Симуляция pull_request: запустятся только test-backend + test-frontend
+act pull_request
+
+# Симуляция push в main: полный pipeline (до update-manifests)
+act push
+
+# Один конкретный джоб — быстро, без остальных
+act push -j test-backend
+act push -j test-frontend
+act push -j build-backend   # пушит реальный образ на Docker Hub
+
+# Посмотреть все джобы без запуска
+act push --dry-run
+```
+
+Файл `.secrets` нужен для джобов build и update-manifests:
+```
+DOCKERHUB_USERNAME=...
+DOCKERHUB_TOKEN=...
+GITHUB_TOKEN=...
+```
+
+| Джоб | Нужны secrets | Делает реальный side-effect |
+|---|---|---|
+| test-backend | нет | нет |
+| test-frontend | нет | нет |
+| version | GITHUB_TOKEN | создаёт git-тег в репозитории |
+| build-backend/frontend | DOCKERHUB_* | пушит образ на Docker Hub |
+| update-manifests | GITHUB_TOKEN | коммитит в репозиторий |
+
+#### Smoke-тест вручную
+
+```bash
+# Проверить staging после любого деплоя
+STAGING_URL=http://your-server:81 bash scripts/smoke-test.sh
+```
+
+---
+
+### Уровень 2 — GitHub Actions
+
+Запускается автоматически при событиях git или вручную через UI.
+
+#### Pull Request → только тесты
+
+При открытии или обновлении PR запускаются **только** `test-backend` и `test-frontend`. Сборка и деплой не происходят. Мёрдж заблокирован если тесты красные.
+
+```
+PR открыт / обновлён
+    ↓
+test-backend ──┐
+               ├── ✅ оба зелёные → мёрдж разблокирован
+test-frontend ─┘   ❌ один красный → мёрдж заблокирован
+```
+
+#### Push в main → полный pipeline
+
+Merge PR или прямой пуш в `main` запускает всю цепочку:
+
+```
+push → test-backend ──┐
+       test-frontend ─┤
+                      └── version → build-backend ──┐
+                                    build-frontend ─┘
+                                          ↓
+                                   update-manifests
+                                   (коммит [skip ci])
+```
+
+Итого ~5–10 минут от пуша до появления нового тега в `kustomization.yaml`.
+
+#### Ручной запуск (workflow_dispatch)
+
+Для перезапуска pipeline без изменений в коде:
+
+**GitHub UI:** репозиторий → Actions → CI/CD Pipeline → Run workflow → ввести причину → Run workflow
+
+**GitHub CLI:**
+```bash
+gh workflow run ci-cd.yml --ref main -f reason="force redeploy"
+
+# Следить за прогрессом
+gh run watch
+```
+
+Workflow_dispatch запускает полный pipeline (как push в main) — тесты, сборка, update-manifests.
+
+---
+
+### Уровень 3 — ArgoCD
+
+ArgoCD работает внутри кластера и сам тянет изменения из git. CI не имеет прямого доступа к кластеру.
+
+#### Авто-синхронизация (основной путь)
+
+После того как `update-manifests` делает коммит в `kustomization.yaml`, ArgoCD обнаруживает изменение и синхронизирует кластер — без каких-либо действий со стороны разработчика.
+
+```
+коммит [skip ci] → main
+        ↓
+ArgoCD polling (каждые 3 мин) или webhook
+        ↓
+Обнаружен diff в kustomization.yaml
+        ↓
+kubectl apply -k k8s/overlays/staging
+        ↓
+Rolling update подов
+        ↓
+Status: Synced + Healthy
+```
+
+Время от пуша кода до `Healthy` в кластере: **~10–15 минут** (CI ~8 мин + ArgoCD polling до 3 мин + rolling update ~1–2 мин).
+
+#### Ручной sync через UI
+
+ArgoCD UI → приложение `habit-pet-staging` → кнопка **Sync** → Synchronize.
+
+Полезно когда нужно не ждать polling-цикл (3 мин).
+
+#### Ручной sync через CLI
+
+```bash
+# argocd CLI (требует логин)
+argocd login localhost:8080 --username admin --password <пароль>
+argocd app sync habit-pet-staging
+
+# Следить за синхронизацией
+argocd app wait habit-pet-staging --sync --health --timeout 300
+
+# Через kubectl (без argocd CLI)
+kubectl patch application habit-pet-staging -n argocd \
+  --type merge -p '{"operation":{"sync":{}}}'
+```
+
+#### Принудительный sync (force)
+
+Применяет манифесты даже если ArgoCD считает их синхронизированными. Используется при застрявшем статусе.
+
+```bash
+argocd app sync habit-pet-staging --force
+```
+
+---
+
+### Сравнительная таблица
+
+| Рычаг | Что запускает | Побочный эффект | Время |
+|---|---|---|---|
+| `pytest tests/` | только backend тесты | нет | ~30–60 с |
+| `npm test -- --run` | только frontend тесты | нет | ~10–20 с |
+| `act pull_request` | тесты (оба) | нет | ~2–4 мин |
+| `act push` | полный pipeline локально | образ на Docker Hub + git-тег + коммит манифеста | ~10–20 мин |
+| PR в GitHub | тесты (оба) | нет | ~3–5 мин |
+| push в main | полный pipeline | образ на Docker Hub + git-тег + коммит манифеста | ~8–12 мин |
+| workflow_dispatch | полный pipeline | то же что push в main | ~8–12 мин |
+| ArgoCD auto-sync | деплой в кластер | rolling update подов | до 3 мин после коммита |
+| ArgoCD UI Sync | деплой в кластер | rolling update подов | ~1–2 мин |
+| `argocd app sync` | деплой в кластер | rolling update подов | ~1–2 мин |
+
+---
+
 ## Стадии CI pipeline
 
 ### test-backend

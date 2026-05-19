@@ -4,6 +4,7 @@ k8s/**/secret.yaml
 __pycache__/
 .obsidian/
 .claudeignore
+.claude
+.secrets
 
 node_modules/
-package-lock.json
