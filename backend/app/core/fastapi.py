@@ -11,6 +11,9 @@ from app.core.config import collect_fastapi_params
 from app.core.exceptions.exception_handlers import app_error_handler
 from app.core.exceptions import AppError
 from app.core.logger import logger
+from app.core.metrics import setup_metrics
+from app.core.tracing import setup_tracing
+from app.core.database import engine
 from app.routers import routers
 from app.services.redis.client import init_redis, close_redis
 
@@ -23,6 +26,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, **collect_fastapi_params())
+setup_metrics(app)
+setup_tracing(app, engine=engine)
 
 # ── CORS ─────────────────────────────────────────────────────────
 _cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")

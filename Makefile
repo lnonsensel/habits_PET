@@ -2,11 +2,13 @@
         docker-up docker-down docker-build \
         clean deploy logs-frontend logs-backend \
         setup openapi frontend-dev backend-dev \
-        frontend-test backend-test status migrate
+        frontend-test backend-test status migrate \
+        monitoring-up monitoring-down monitoring-ps
 
 FRONTEND_DIR = frontend
 BACKEND_DIR = backend
 DOCKER_COMPOSE_FILE = docker-compose.yml
+DOCKER_COMPOSE_MONITORING = docker-compose.monitoring.yml
 
 help: ## Show help for all commands
 	@echo "=============================================="
@@ -90,6 +92,16 @@ docker-down: ## Stop Docker stack
 docker-build: ## Build all Docker images
 	@cd $(BACKEND_DIR) && make docker-build
 	@cd $(FRONTEND_DIR) && make docker-build
+
+# =================== OBSERVABILITY ===================
+monitoring-up: ## Start monitoring stack (Prometheus, Grafana, Loki, Jaeger, exporters)
+	docker-compose -f $(DOCKER_COMPOSE_FILE) -f $(DOCKER_COMPOSE_MONITORING) up -d prometheus grafana loki promtail otel-collector jaeger postgres-exporter redis-exporter
+
+monitoring-down: ## Stop monitoring stack
+	docker-compose -f $(DOCKER_COMPOSE_MONITORING) down
+
+monitoring-ps: ## Show monitoring stack status
+	docker-compose -f $(DOCKER_COMPOSE_MONITORING) ps
 
 # =================== MONITORING ===================
 logs-frontend: ## Show frontend logs

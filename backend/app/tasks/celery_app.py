@@ -55,5 +55,10 @@ celery_app.conf.update(
             "task": "app.tasks.periodic.dispatch_pending_notifications",
             "schedule": 60.0,
         },
+        # Prometheus gauges: refresh every 30 seconds
+        "refresh-business-metrics": {
+            "task": "app.tasks.periodic.refresh_business_metrics",
+            "schedule": 30.0,
+        },
     },
 )

@@ -10,6 +10,7 @@ from app.core.exceptions.crud_exceptions import (
     ObjectNotFoundError,
     DatabaseError,
 )
+from app.core.metrics import crud_ops_total
 
 logger = logging.getLogger("habitpet.crud")
 
@@ -58,6 +59,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             logger.error("create %s SQLAlchemyError: %s", self.tablename, e)
             raise DatabaseError(self.tablename, None)
         db.refresh(db_obj)
+        crud_ops_total.labels(table=self.tablename, operation="create").inc()
         return db_obj
 
     def update(self, db: Session, id: Any, obj_in: UpdateSchemaType) -> ModelType:
@@ -74,6 +76,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             logger.error("update %s id=%s: %s", self.tablename, id, e)
             raise DatabaseError(self.tablename, id)
         db.refresh(db_obj)
+        crud_ops_total.labels(table=self.tablename, operation="update").inc()
         return db_obj
 
     def delete(self, db: Session, id: Any) -> ModelType:
@@ -87,4 +90,5 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             db.rollback()
             logger.error("delete %s id=%s: %s", self.tablename, id, e)
             raise DatabaseError(self.tablename, id)
+        crud_ops_total.labels(table=self.tablename, operation="delete").inc()
         return db_obj

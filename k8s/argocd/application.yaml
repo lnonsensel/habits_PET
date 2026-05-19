@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: habit-pet-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/habit-pet.git  # заменить на реальный URL репозитория
+    targetRevision: main
+    path: k8s/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: habit-pet-staging
+  syncPolicy:
+    automated:
+      prune: true      # удаляет ресурсы, которых нет в git
+      selfHeal: true   # откатывает ручные kubectl-изменения
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

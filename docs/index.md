@@ -13,6 +13,10 @@
 | Валидация | Pydantic 2.12 |
 | Контейнеризация | Docker + Docker Compose |
 | Оркестрация (staging) | Kubernetes + Kustomize |
+| CI/CD + GitOps | GitHub Actions + Docker Hub + ArgoCD |
+| Метрики | Prometheus + Grafana + prometheus-fastapi-instrumentator |
+| Логи | Loki + Promtail |
+| Трейсинг | OpenTelemetry + Jaeger |
 
 ## Архитектурная схема
 
@@ -58,6 +62,8 @@
 | [Background Tasks](background-tasks.md) | Celery задачи и расписание |
 | [Testing](testing.md) | Как запускать и писать тесты |
 | [Kubernetes](kubernetes.md) | K8s манифесты, Kustomize, деплой в staging |
+| [Observability](observability.md) | Метрики, логи, трейсинг, Grafana-дашборды |
+| [CI/CD](ci-cd.md) | GitHub Actions, CalVer, Docker Hub, ArgoCD GitOps |
 
 ## Быстрый старт
 

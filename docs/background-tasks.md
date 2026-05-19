@@ -58,6 +58,7 @@ celery -A app.tasks.celery_app:celery_app flower
 | `send_weekly_summary` | Каждое воскресенье 09:00 UTC | SUMMARY_WEEKLY для пользователей с любыми активными привычками |
 | `cleanup_notifications` | Каждый день 03:00 UTC | Удалить все SENT-уведомления из БД |
 | `dispatch_pending_notifications` | Каждые 60 секунд | Fallback: диспатчить PENDING с retry_count < 3 |
+| `refresh_business_metrics` | Каждые 30 секунд | Обновить Prometheus Gauge-метрики из БД |
 
 ## Задачи
 
@@ -121,6 +122,24 @@ for habit in Habit.filter(periodicity=DAILY, archived_at=None):
 ### `dispatch_pending_notifications() → int`
 
 Fallback-задача: запускается каждые 60 секунд и диспатчит PENDING уведомления с `retry_count < 3`. Покрывает случай, когда `send_notification.delay()` не смог положить задачу в Celery (например, Redis временно недоступен в момент создания уведомления).
+
+### `refresh_business_metrics() → dict`
+
+**Файл:** `app/tasks/periodic.py`
+
+Запрашивает актуальные счётчики из PostgreSQL и выставляет Prometheus Gauge-метрики. Запускается каждые 30 секунд через Celery Beat.
+
+```
+habits_active = COUNT(habits WHERE archived_at IS NULL)
+users_total   = COUNT(users)
+
+habitpet_habits_active_total.set(habits_active)
+habitpet_users_total.set(users_total)
+```
+
+**Возвращает:** `{"habits_active": int, "users_total": int}`
+
+> Gauge-метрики не хранятся в Redis — они живут только в памяти Python-процесса. При перезапуске backend задача заполнит их в течение 30 секунд.
 
 ## Delivery-заглушки
 

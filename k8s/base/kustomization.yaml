@@ -18,3 +18,8 @@ resources:
   - celery/worker-deployment.yaml
   - celery/beat-deployment.yaml
   - ingress.yaml
+  - monitoring/kube-state-metrics.yaml
+  - monitoring/prometheus.yaml
+  - monitoring/grafana.yaml
+  - monitoring/loki.yaml
+  - monitoring/jaeger.yaml

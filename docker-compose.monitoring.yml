@@ -1,0 +1,133 @@
+services:
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: habits_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    networks:
+      - habits_network
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    container_name: habits_grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    env_file:
+      - .monitoring.env
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_FEATURE_TOGGLES_ENABLE: "traceToMetrics"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - habits_network
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: habits_loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - habits_network
+
+  promtail:
+    image: grafana/promtail:3.5.0
+    container_name: habits_promtail
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    networks:
+      - habits_network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.127.0
+    container_name: habits_otel_collector
+    restart: unless-stopped
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./monitoring/otel-collector/config.yml:/etc/otelcol-contrib/config.yml:ro
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    depends_on:
+      - jaeger
+    networks:
+      - habits_network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.68.0
+    container_name: habits_jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "14250:14250"   # gRPC collector
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - habits_network
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: habits_postgres_exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    env_file:
+      - backend/.db.env
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    depends_on:
+      - prometheus
+    networks:
+      - habits_network
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.74.0
+    container_name: habits_redis_exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    env_file:
+      - backend/.redis.env
+    environment:
+      REDIS_ADDR: "redis://cache:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    depends_on:
+      - prometheus
+    networks:
+      - habits_network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  habits_network:
+    external: true
+    name: habit_pet_habits_network

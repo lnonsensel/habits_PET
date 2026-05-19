@@ -8,6 +8,7 @@ from app.models.habit import Habit
 from app.models.habit_record import HabitRecord
 from app.models.notification import Notification
 from app.models.user import User
+from app.core.metrics import habits_active, users_total_gauge
 
 logger = logging.getLogger("habitpet.tasks.periodic")
 
@@ -176,6 +177,26 @@ def cleanup_notifications() -> int:
     except Exception as exc:
         db.rollback()
         logger.error("cleanup_notifications failed: %s", exc)
+        raise
+    finally:
+        db.close()
+
+
+# ── Business metrics refresh ──────────────────────────────────────
+
+@celery_app.task(name="app.tasks.periodic.refresh_business_metrics")
+def refresh_business_metrics() -> dict:
+    """Update Prometheus gauges with current DB counts."""
+    db = SessionLocal()
+    try:
+        active_count = db.query(Habit).filter(Habit.archived_at.is_(None)).count()
+        users_count = db.query(User).count()
+        habits_active.set(active_count)
+        users_total_gauge.set(users_count)
+        logger.info("refresh_business_metrics: habits_active=%d users=%d", active_count, users_count)
+        return {"habits_active": active_count, "users_total": users_count}
+    except Exception as exc:
+        logger.error("refresh_business_metrics failed: %s", exc)
         raise
     finally:
         db.close()

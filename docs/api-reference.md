@@ -405,3 +405,49 @@ curl -u admin:password http://localhost:3000/admin/stats
 | `skip`, `limit` | — | Пагинация |
 
 **Ответ** включает: `id`, `user_email`, `event`, `context`, `ip`, `created_at`
+
+---
+
+### `GET /admin/metrics-summary`
+
+Текущие значения Prometheus-метрик из registry Python-процесса. Данные накапливаются с момента последнего перезапуска backend.
+
+**Ответ `200`:**
+```json
+{
+  "http_total": 1523,
+  "http_by_status": {
+    "2xx": 1490,
+    "3xx": 8,
+    "4xx": 23,
+    "5xx": 2
+  },
+  "avg_latency_ms": 34.7,
+  "crud_ops": {
+    "habits":        { "create": 18, "update": 5,  "delete": 2  },
+    "habit_records": { "create": 310, "update": 0, "delete": 12 },
+    "users":         { "create": 8,  "update": 1,  "delete": 0  }
+  },
+  "habits_active": 42,
+  "users_total": 10,
+  "top_endpoints": [
+    { "handler": "/api/habits/",        "count": 540 },
+    { "handler": "/api/habit-records/", "count": 312 },
+    { "handler": "/auth/login/",        "count": 89  }
+  ]
+}
+```
+
+| Поле | Описание |
+|---|---|
+| `http_total` | Всего HTTP-запросов с запуска процесса |
+| `http_by_status` | Разбивка по классу статус-кода (2xx / 3xx / 4xx / 5xx) |
+| `avg_latency_ms` | Средняя задержка (мс) по всем запросам, `null` если запросов не было |
+| `crud_ops` | CRUD-операции по таблицам: `create`, `update`, `delete` |
+| `habits_active` | Текущее количество активных привычек (Gauge, обновляется каждые 30с) |
+| `users_total` | Текущее количество пользователей (Gauge, обновляется каждые 30с) |
+| `top_endpoints` | Топ-8 эндпоинтов по количеству запросов |
+
+```bash
+curl -u admin:password http://localhost:3000/api/admin/metrics-summary
+```

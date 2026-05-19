@@ -245,6 +245,86 @@ def list_habits(
     ]
 
 
+# ── Prometheus metrics summary ────────────────────────────────────
+
+@admin_router.get("/metrics-summary")
+def get_metrics_summary(
+    _: None = Depends(require_admin),
+) -> dict[str, Any]:
+    """Текущие значения Prometheus-метрик из реестра процесса."""
+    from prometheus_client import REGISTRY
+
+    http_by_status: dict[str, float] = {"2xx": 0.0, "3xx": 0.0, "4xx": 0.0, "5xx": 0.0}
+    http_total = 0.0
+    http_dur_sum = 0.0
+    http_dur_count = 0.0
+    crud_ops: dict[str, dict[str, int]] = {}
+    habits_active_val = None
+    users_total_val = None
+    endpoint_counts: dict[str, float] = {}
+
+    _excluded_handlers = {"/metrics", "/health", "/health/db"}
+
+    for mf in REGISTRY.collect():
+        name = mf.name
+
+        if name == "http_requests_total":
+            for s in mf.samples:
+                if s.name != "http_requests_total":
+                    continue
+                code = s.labels.get("status_code", "")
+                handler = s.labels.get("handler", "unknown")
+                v = s.value
+                http_total += v
+                prefix = (code[0] + "xx") if code and code[0].isdigit() else "other"
+                http_by_status[prefix] = http_by_status.get(prefix, 0.0) + v
+                if handler not in _excluded_handlers:
+                    endpoint_counts[handler] = endpoint_counts.get(handler, 0.0) + v
+
+        elif name == "http_request_duration_highr_seconds":
+            for s in mf.samples:
+                if s.name == "http_request_duration_highr_seconds_sum":
+                    http_dur_sum += s.value
+                elif s.name == "http_request_duration_highr_seconds_count":
+                    http_dur_count += s.value
+
+        elif name == "habitpet_crud_ops_total":
+            for s in mf.samples:
+                if s.name != "habitpet_crud_ops_total":
+                    continue
+                table = s.labels.get("table", "")
+                op = s.labels.get("operation", "")
+                crud_ops.setdefault(table, {})[op] = int(s.value)
+
+        elif name == "habitpet_habits_active_total":
+            for s in mf.samples:
+                habits_active_val = s.value
+
+        elif name == "habitpet_users_total":
+            for s in mf.samples:
+                users_total_val = s.value
+
+    avg_latency_ms = (
+        round(http_dur_sum / http_dur_count * 1000, 1)
+        if http_dur_count > 0 else None
+    )
+
+    top_endpoints = sorted(
+        [{"handler": h, "count": int(c)} for h, c in endpoint_counts.items()],
+        key=lambda x: x["count"], reverse=True,
+    )[:8]
+
+    return {
+        "http_total":     int(http_total),
+        "http_by_status": {k: int(v) for k, v in http_by_status.items()},
+        "avg_latency_ms": avg_latency_ms,
+        "crud_ops":       crud_ops,
+        "habits_active":  int(habits_active_val) if habits_active_val is not None else None,
+        "users_total":    int(users_total_val) if users_total_val is not None else None,
+        "top_endpoints":  top_endpoints,
+    }
+
+
 # ── Audit Logs ────────────────────────────────────────────────────
 
 @admin_router.get("/logs")

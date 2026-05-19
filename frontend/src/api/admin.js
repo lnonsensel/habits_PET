@@ -23,3 +23,4 @@ export const retryNotification     = (h, id)       => adminRequest(`/api/admin/n
 export const getAdminHabits        = (h, params)   => adminRequest(`/api/admin/habits?${new URLSearchParams(params)}`, h)
 export const getAdminLogs          = (h, params)   => adminRequest(`/api/admin/logs?${new URLSearchParams(params)}`, h)
 export const sendBroadcast         = (h, data)     => adminRequest('/api/admin/notifications/send', h, 'POST', data)
+export const getAdminMetricsSummary = (h)           => adminRequest('/api/admin/metrics-summary', h)

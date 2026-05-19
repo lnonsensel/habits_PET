@@ -1,0 +1,16 @@
+services:
+  backend:
+    image: ${DOCKERHUB_USERNAME}/habit-pet-backend:${BACKEND_TAG:-latest}
+    build: null
+
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/habit-pet-frontend:${FRONTEND_TAG:-latest}
+    build: null
+
+  celery_worker:
+    image: ${DOCKERHUB_USERNAME}/habit-pet-backend:${BACKEND_TAG:-latest}
+    build: null
+
+  celery_beat:
+    image: ${DOCKERHUB_USERNAME}/habit-pet-backend:${BACKEND_TAG:-latest}
+    build: null
